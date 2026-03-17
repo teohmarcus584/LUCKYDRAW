@@ -140,7 +140,7 @@
   </style>
 </head>
 <body>
-  <h1>🎡 wheel of fortune</h1>
+  <h1> UL fortune</h1>
 
   <div class="wheel-wrapper">
     <canvas id="wheelCanvas" width="700" height="700"></canvas>
@@ -332,11 +332,11 @@
       function animateSpin(now) {
         const elapsed = now - spinStartTime;
         let progress = Math.min(elapsed / spinDuration, 1);
-        // EaseOutQuart: stronger deceleration – very slow final approach
-        const easeOutQuart = 1 - Math.pow(1 - progress, 4);
+        // EaseOutExpo: extremely slow final approach
+        const easeOutExpo = progress === 1 ? 1 : 1 - Math.pow(2, -10 * progress);
 
         // Interpolate rotation (raw)
-        const rawRotation = spinStartRotation + (spinTargetRotation - spinStartRotation) * easeOutQuart;
+        const rawRotation = spinStartRotation + (spinTargetRotation - spinStartRotation) * easeOutExpo;
         // Normalize for drawing
         currentRotation = normalizeAngle(rawRotation);
         drawWheel();

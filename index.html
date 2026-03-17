@@ -3,8 +3,6 @@
 <head>
   <base target="_top">
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=yes">
-  <!-- Confetti library -->
-  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1"></script>
   <style>
     * {
       box-sizing: border-box;
@@ -114,7 +112,6 @@
   <div class="controls">
     <button id="spinButton" style="display:none;">spin</button>
     <button id="connectPrinterButton">🖨️ connect printer</button>
-    <!-- test print button is no longer shown after connection -->
   </div>
   <div id="printerStatus"></div>
   <div id="result"></div>
@@ -231,41 +228,7 @@
       ctx.fill();
     }
 
-    // Confetti celebration – bursts from the exact center of the wheel
-    function celebrate() {
-      // Get the wheel's center position relative to the viewport
-      const canvasRect = canvas.getBoundingClientRect();
-      const originX = (canvasRect.left + canvasRect.width / 2) / window.innerWidth + 0.10; // shift right
-const originY = (canvasRect.top + canvasRect.height / 2) / window.innerHeight;
-
-      const duration = 3000; // 3 seconds
-      const animationEnd = Date.now() + duration;
-      const randomInRange = (min, max) => Math.random() * (max - min) + min;
-
-      (function frame() {
-        const timeLeft = animationEnd - Date.now();
-
-        if (timeLeft <= 0) return;
-
-        // Multiple bursts from the wheel's center
-        for (let i = 0; i < 6; i++) {
-          confetti({
-            particleCount: 10,
-            angle: randomInRange(0, 360),
-            spread: 500,
-            origin: { x: originX, y: originY },
-            startVelocity: randomInRange(15, 35),
-            colors: ['#bb0000', '#ffffff', '#00bb00', '#0000bb', '#ffff00', '#ff8800', '#ff00ff'],
-            decay: 0.9,
-            opacity: 5
-          });
-        }
-
-        requestAnimationFrame(frame);
-      }());
-    }
-
-    // Spin function with mandatory receipt number prompt
+    // Spin function with mandatory receipt number prompt (NO CONFETTI)
     function spinWheel() {
       if (spinning) return;
 
@@ -351,12 +314,7 @@ const originY = (canvasRect.top + canvasRect.height / 2) / window.innerHeight;
           spinBtn.disabled = false;
           resultDiv.innerText = `🎉 you won: ${wonPrize.label}`;
 
-          // Celebrate only if it's not a "NO WIN"
-          if (!wonPrize.label.toLowerCase().includes('no win')) {
-            celebrate();
-          }
-
-          // Print with the collected receipt number
+          // Print with the collected receipt number (NO CONFETTI)
           if (window.printerAPI && window.printerAPI.isConnected) {
             window.printerAPI.printWinningPrize(wonPrize.label, receiptNumber);
           }

@@ -191,9 +191,12 @@
     let currentRotation = 0; // always normalized to [0, 2π)
     let animationFrame = null;
     let spinStartTime = null;
-    const spinDuration = 10000; // 8 seconds
+    const spinDuration = 10000; // 10 seconds (you set it to 10000)
     let spinStartRotation = 0;
     let spinTargetRotation = 0;
+
+    // Store receipt number for two‑click behavior
+    let storedReceiptNumber = null;
 
     const TWO_PI = 2 * Math.PI;
 
@@ -266,22 +269,31 @@
       ctx.fill();
     }
 
+    // Modified spin function: two‑click behavior
     function spinWheel() {
       if (spinning) return;
 
-      // Receipt number mandatory prompt
-      let receiptNumber = "";
-      while (!receiptNumber || receiptNumber.trim() === "") {
-        receiptNumber = prompt("Please enter receipt number:");
+      // If no receipt number stored, prompt and store, then return (no spin)
+      if (storedReceiptNumber === null) {
+        let receiptNumber = prompt("Please enter receipt number:");
         if (receiptNumber === null) {
-          alert("Receipt number is required to spin.");
+          // User cancelled – do nothing
           return;
         }
         receiptNumber = receiptNumber.trim();
         if (receiptNumber === "") {
           alert("Receipt number cannot be empty.");
+          return;
         }
+        storedReceiptNumber = receiptNumber;
+        // Optional: show a message that number is stored
+        resultDiv.innerText = `Receipt #${storedReceiptNumber} stored. Click SPIN again to spin.`;
+        return;
       }
+
+      // If we have a stored receipt number, proceed to spin
+      const receiptNumber = storedReceiptNumber;
+      storedReceiptNumber = null; // clear for next spin
 
       if (prizes.length === 0) {
         resultDiv.innerText = 'Add some prizes first!';
@@ -314,15 +326,13 @@
       const segmentAngle = TWO_PI / prizes.length;
       const randomOffset = Math.random() * segmentAngle;
       const targetAngleInWheel = selectedIndex * segmentAngle + randomOffset;
-      // Desired final normalized rotation
       let targetBaseRotation = normalizeAngle(normalizedPointerAngle - targetAngleInWheel);
 
-      // 12-20 full turns for dramatic effect
       const extraFullTurns = 12 + Math.floor(Math.random() * 9);
       const extraAngle = extraFullTurns * TWO_PI;
-      spinTargetRotation = targetBaseRotation + extraAngle; // not normalized, for interpolation
+      spinTargetRotation = targetBaseRotation + extraAngle;
 
-      spinStartRotation = currentRotation; // currentRotation is normalized
+      spinStartRotation = currentRotation;
       spinStartTime = performance.now();
       spinning = true;
       spinBtn.disabled = true;
@@ -332,20 +342,15 @@
       function animateSpin(now) {
         const elapsed = now - spinStartTime;
         let progress = Math.min(elapsed / spinDuration, 1);
-        // EaseOutQuart: stronger deceleration – very slow final approach
         const easeOutQuart = 1 - Math.pow(1 - progress, 4);
 
-        // Interpolate rotation (raw)
         const rawRotation = spinStartRotation + (spinTargetRotation - spinStartRotation) * easeOutQuart;
-        // Normalize for drawing
         currentRotation = normalizeAngle(rawRotation);
         drawWheel();
 
         if (progress < 1) {
           animationFrame = requestAnimationFrame(animateSpin);
         } else {
-          // No extra assignment – currentRotation already equals targetBaseRotation
-          // Determine winning prize (should match selected prize)
           const wheelAngleAtPointer = normalizeAngle(normalizedPointerAngle - currentRotation);
           const segmentIndex = Math.floor(wheelAngleAtPointer / segmentAngle);
           const actualIndex = Math.min(segmentIndex, prizes.length - 1);

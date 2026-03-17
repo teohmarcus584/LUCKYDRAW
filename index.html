@@ -139,7 +139,7 @@
   </style>
 </head>
 <body>
-  <h1>UL LUCKY SPIN</h1>
+  <h1>🎡 wheel of fortune</h1>
 
   <div class="wheel-wrapper">
     <canvas id="wheelCanvas" width="700" height="700"></canvas>
@@ -338,11 +338,8 @@
         if (progress < 1) {
           animationFrame = requestAnimationFrame(animateSpin);
         } else {
-          // FINAL FRAME: ensure exact target (no normalization jump)
-          currentRotation = spinTargetRotation;
-          drawWheel();
-
-          // Determine winning prize (using normalized angle for calculation)
+          // NO reassignment – currentRotation already holds the final value
+          // Determine winning prize using normalized angle
           const currentNormalized = normalizeAngle(currentRotation);
           const wheelAngleAtPointer = normalizeAngle(normalizedPointerAngle - currentNormalized);
           const segmentIndex = Math.floor(wheelAngleAtPointer / segmentAngle);

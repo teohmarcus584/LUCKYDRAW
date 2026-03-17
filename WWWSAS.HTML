@@ -1,0 +1,534 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=yes">
+  <!-- Confetti library -->
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1"></script>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+      background: #fafafa;
+      color: #222;
+      line-height: 1.5;
+      padding: 16px;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    h1 {
+      font-size: 1.8rem;
+      font-weight: 400;
+      margin: 0 0 8px 0;
+      color: #111;
+      text-align: center;
+    }
+    .wheel-container {
+      display: flex;
+      justify-content: center;
+      margin: 10px 0 20px 0;
+      width: 100%;
+    }
+    canvas {
+      width: 100%;
+      max-width: 500px;
+      height: auto;
+      aspect-ratio: 1/1;
+      display: block;
+      background: white;
+      border-radius: 50%;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+      border: 1px solid #eee;
+    }
+    .controls {
+      display: flex;
+      justify-content: center;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin: 16px 0 8px 0;
+    }
+    button {
+      background: white;
+      border: 1px solid #ccc;
+      border-radius: 40px;
+      padding: 14px 24px;
+      font-size: 1.1rem;
+      font-weight: 500;
+      color: #222;
+      cursor: pointer;
+      transition: all 0.2s;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.03);
+      -webkit-tap-highlight-color: transparent;
+      touch-action: manipulation;
+      min-width: 140px;
+    }
+    button:hover {
+      background: #f2f2f2;
+    }
+    button:active {
+      background: #e8e8e8;
+      transform: scale(0.98);
+    }
+    button:disabled {
+      opacity: 0.5;
+      pointer-events: none;
+      background: #f0f0f0;
+    }
+    #printerStatus {
+      text-align: center;
+      font-size: 0.9rem;
+      color: #666;
+      margin: 4px 0 10px 0;
+      min-height: 3rem;
+      white-space: pre-wrap;
+      background: #f0f0f0;
+      padding: 8px;
+      border-radius: 8px;
+    }
+    #result {
+      text-align: center;
+      font-size: 1.6rem;
+      font-weight: 400;
+      margin: 10px 0 25px 0;
+      min-height: 3rem;
+      color: #0a7b3c;
+    }
+    @media (max-width: 480px) {
+      h1 { font-size: 1.5rem; }
+    }
+  </style>
+</head>
+<body>
+  <h1>🎡 wheel of fortune</h1>
+
+  <div class="wheel-container">
+    <canvas id="wheelCanvas" width="700" height="700"></canvas>
+  </div>
+
+  <div class="controls">
+    <button id="spinButton" style="display:none;">spin</button>
+    <button id="connectPrinterButton">🖨️ connect printer</button>
+    <!-- test print button is no longer shown after connection -->
+  </div>
+  <div id="printerStatus"></div>
+  <div id="result"></div>
+
+  <!-- Main wheel script -->
+  <script>
+    // ---------- Data (fixed prizes) ----------
+    let prizes = [
+      { label: "CAR AROMATIC RM 38", weight: 5 },
+      { label: "15ML TRAVEL PERFUME RM 75", weight: 3 },
+      { label: "NO WIN", weight: 0 },
+      { label: "LA PREVE 100ML RM 280", weight: 0 },
+      { label: "NO WIN", weight: 0 },
+      { label: "100ML SIGNATURE EDP RM 180", weight: 0 },
+      { label: "NO WIN", weight: 0 },
+      { label: "200ML REED DIFFUSER RM 89", weight: 0 },
+      { label: "NO WIN", weight: 0 },
+      { label: "500ML BODY WASH RM 67", weight: 0 },
+      { label: "NO WIN", weight: 0 },
+      { label: "300ML LOTION RM 109", weight: 0 },
+      { label: "NO WIN", weight: 0 },
+      { label: "100ML ROOM SPRAY RM 89", weight: 0 },
+      { label: "NO WIN", weight: 0 },
+      { label: "100ML PILLOW MIST RM 75", weight: 0 },
+      { label: "NO WIN", weight: 0 },
+      { label: "HUMIDIFIER MACHINE RM 249", weight: 0 },
+    ];
+
+    const colorPalette = [
+      "#FF6F61", "#6B5B95", "#88B04B", "#FFA07A", "#92A8D1",
+      "#F7CAC9", "#955251", "#B565A7", "#009B77", "#DD4124"
+    ];
+
+    const canvas = document.getElementById('wheelCanvas');
+    const ctx = canvas.getContext('2d');
+    const spinBtn = document.getElementById('spinButton');
+    const resultDiv = document.getElementById('result');
+
+    let spinning = false;
+    let currentRotation = 0;
+    let animationFrame = null;
+    let spinStartTime = null;
+    const spinDuration = 4000;
+    let spinStartRotation = 0;
+    let spinTargetRotation = 0;
+
+    function normalizeAngle(angle) {
+      const twoPi = 2 * Math.PI;
+      return ((angle % twoPi) + twoPi) % twoPi;
+    }
+
+    function drawWheel() {
+      const centerX = canvas.width / 2;
+      const centerY = canvas.height / 2;
+      const radius = Math.min(centerX, centerY) - 15;
+
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      if (prizes.length === 0) {
+        ctx.font = 'bold 24px Arial';
+        ctx.fillStyle = '#999';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('Add prizes', centerX, centerY);
+        return;
+      }
+
+      const segmentAngle = (2 * Math.PI) / prizes.length;
+      let startAngle = currentRotation;
+
+      for (let i = 0; i < prizes.length; i++) {
+        const prize = prizes[i];
+        const endAngle = startAngle + segmentAngle;
+
+        ctx.beginPath();
+        ctx.moveTo(centerX, centerY);
+        ctx.arc(centerX, centerY, radius, startAngle, endAngle);
+        ctx.closePath();
+        ctx.fillStyle = colorPalette[i % colorPalette.length];
+        ctx.fill();
+        ctx.strokeStyle = '#fff';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+
+        ctx.save();
+        ctx.translate(centerX, centerY);
+        ctx.rotate(startAngle + segmentAngle / 2);
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.font = 'bold 16px -apple-system, BlinkMacSystemFont, sans-serif';
+        ctx.fillStyle = '#000';
+        ctx.shadowColor = 'rgba(255,255,255,0.8)';
+        ctx.shadowBlur = 5;
+        ctx.fillText(prize.label, radius * 0.7, 0);
+        ctx.restore();
+
+        startAngle = endAngle;
+      }
+
+      ctx.beginPath();
+      ctx.arc(centerX, centerY, 30, 0, 2 * Math.PI);
+      ctx.fillStyle = '#333';
+      ctx.shadowBlur = 0;
+      ctx.fill();
+      ctx.strokeStyle = '#fff';
+      ctx.lineWidth = 3;
+      ctx.stroke();
+
+      ctx.beginPath();
+      ctx.moveTo(centerX - 20, 15);
+      ctx.lineTo(centerX, 45);
+      ctx.lineTo(centerX + 20, 15);
+      ctx.fillStyle = '#f00';
+      ctx.fill();
+    }
+
+    // Confetti celebration – bursts from the exact center of the wheel
+    function celebrate() {
+      // Get the wheel's center position relative to the viewport
+      const canvasRect = canvas.getBoundingClientRect();
+      const originX = (canvasRect.left + canvasRect.width / 2) / window.innerWidth + 0.10; // shift right
+const originY = (canvasRect.top + canvasRect.height / 2) / window.innerHeight;
+
+      const duration = 3000; // 3 seconds
+      const animationEnd = Date.now() + duration;
+      const randomInRange = (min, max) => Math.random() * (max - min) + min;
+
+      (function frame() {
+        const timeLeft = animationEnd - Date.now();
+
+        if (timeLeft <= 0) return;
+
+        // Multiple bursts from the wheel's center
+        for (let i = 0; i < 6; i++) {
+          confetti({
+            particleCount: 10,
+            angle: randomInRange(0, 360),
+            spread: 500,
+            origin: { x: originX, y: originY },
+            startVelocity: randomInRange(15, 35),
+            colors: ['#bb0000', '#ffffff', '#00bb00', '#0000bb', '#ffff00', '#ff8800', '#ff00ff'],
+            decay: 0.9,
+            opacity: 5
+          });
+        }
+
+        requestAnimationFrame(frame);
+      }());
+    }
+
+    // Spin function with mandatory receipt number prompt
+    function spinWheel() {
+      if (spinning) return;
+
+      // Receipt number mandatory prompt
+      let receiptNumber = "";
+      while (!receiptNumber || receiptNumber.trim() === "") {
+        receiptNumber = prompt("Please enter receipt number:");
+        if (receiptNumber === null) {
+          alert("Receipt number is required to spin.");
+          return;
+        }
+        receiptNumber = receiptNumber.trim();
+        if (receiptNumber === "") {
+          alert("Receipt number cannot be empty.");
+        }
+      }
+
+      // Proceed with spin
+      if (prizes.length === 0) {
+        resultDiv.innerText = 'Add some prizes first!';
+        return;
+      }
+
+      const totalWeight = prizes.reduce((sum, p) => sum + p.weight, 0);
+      if (totalWeight === 0) {
+        resultDiv.innerText = 'All weights are zero – nothing to win!';
+        return;
+      }
+
+      const rand = Math.random() * totalWeight;
+      let cumulative = 0;
+      let selectedIndex = 0;
+      for (let i = 0; i < prizes.length; i++) {
+        cumulative += prizes[i].weight;
+        if (rand < cumulative) {
+          selectedIndex = i;
+          break;
+        }
+      }
+
+      const centerX = canvas.width / 2;
+      const centerY = canvas.height / 2;
+      const pointerTip = { x: centerX, y: 45 };
+      const pointerAngle = Math.atan2(pointerTip.y - centerY, pointerTip.x - centerX);
+      const normalizedPointerAngle = normalizeAngle(pointerAngle);
+
+      const segmentAngle = (2 * Math.PI) / prizes.length;
+      const randomOffset = Math.random() * segmentAngle;
+      const targetAngleInWheel = selectedIndex * segmentAngle + randomOffset;
+      let targetBaseRotation = normalizeAngle(normalizedPointerAngle - targetAngleInWheel);
+
+      const extraFullTurns = 10 + Math.floor(Math.random() * 7);
+      const extraAngle = extraFullTurns * 2 * Math.PI;
+      spinTargetRotation = targetBaseRotation + extraAngle;
+
+      spinStartRotation = currentRotation;
+      spinStartTime = performance.now();
+      spinning = true;
+      spinBtn.disabled = true;
+
+      if (animationFrame) cancelAnimationFrame(animationFrame);
+
+      function animateSpin(now) {
+        const elapsed = now - spinStartTime;
+        let progress = Math.min(elapsed / spinDuration, 1);
+        const easeOutQuart = 1 - Math.pow(1 - progress, 4);
+
+        currentRotation = spinStartRotation + (spinTargetRotation - spinStartRotation) * easeOutQuart;
+        drawWheel();
+
+        if (progress < 1) {
+          animationFrame = requestAnimationFrame(animateSpin);
+        } else {
+          currentRotation = normalizeAngle(spinTargetRotation);
+          drawWheel();
+
+          const wheelAngleAtPointer = normalizeAngle(normalizedPointerAngle - currentRotation);
+          const segmentIndex = Math.floor(wheelAngleAtPointer / segmentAngle);
+          const actualIndex = Math.min(segmentIndex, prizes.length - 1);
+          const wonPrize = prizes[actualIndex];
+
+          spinning = false;
+          spinBtn.disabled = false;
+          resultDiv.innerText = `🎉 you won: ${wonPrize.label}`;
+
+          // Celebrate only if it's not a "NO WIN"
+          if (!wonPrize.label.toLowerCase().includes('no win')) {
+            celebrate();
+          }
+
+          // Print with the collected receipt number
+          if (window.printerAPI && window.printerAPI.isConnected) {
+            window.printerAPI.printWinningPrize(wonPrize.label, receiptNumber);
+          }
+
+          animationFrame = null;
+        }
+      }
+
+      animationFrame = requestAnimationFrame(animateSpin);
+    }
+
+    spinBtn.addEventListener('click', spinWheel);
+    drawWheel();
+  </script>
+
+  <!-- Printer integration (no test button) -->
+  <script>
+    (function() {
+      const connectBtn = document.getElementById('connectPrinterButton');
+      const spinBtn = document.getElementById('spinButton');
+      const printerStatus = document.getElementById('printerStatus');
+
+      let gattServer = null;
+      let printerCharacteristic = null;
+      let isConnected = false;
+
+      window.printerAPI = {
+        isConnected: false,
+        printWinningPrize: null
+      };
+
+      function setStatus(msg, isError = false) {
+        printerStatus.innerText = msg;
+        printerStatus.style.background = isError ? '#ffeeee' : '#f0f0f0';
+      }
+
+      async function connectPrinter() {
+        try {
+          setStatus('🔍 Requesting Bluetooth device...');
+          connectBtn.disabled = true;
+
+          const device = await navigator.bluetooth.requestDevice({
+            acceptAllDevices: true,
+            optionalServices: ['000018f0-0000-1000-8000-00805f9b34fb']
+          });
+
+          setStatus(`✅ Device selected: ${device.name || 'Unnamed'}\nConnecting to GATT...`);
+
+          gattServer = await device.gatt.connect();
+          setStatus(`✅ GATT connected. Discovering services...`);
+
+          const services = await gattServer.getPrimaryServices();
+          let foundChar = null;
+
+          for (const service of services) {
+            const characteristics = await service.getCharacteristics();
+            for (const char of characteristics) {
+              if (char.properties.write || char.properties.writeWithoutResponse) {
+                foundChar = char;
+                break;
+              }
+            }
+            if (foundChar) break;
+          }
+
+          if (!foundChar) {
+            throw new Error('No writable characteristic found');
+          }
+
+          printerCharacteristic = foundChar;
+          isConnected = true;
+          window.printerAPI.isConnected = true;
+
+          setStatus('✅ Printer ready!');
+          connectBtn.innerText = '🖨️ disconnect';
+          spinBtn.style.display = 'inline-block'; // Show spin button
+        } catch (error) {
+          console.error('Connection error:', error);
+          setStatus(`❌ Failed: ${error.message}`, true);
+          gattServer = null;
+          printerCharacteristic = null;
+        } finally {
+          connectBtn.disabled = false;
+        }
+      }
+
+      async function disconnectPrinter() {
+        try {
+          if (gattServer) {
+            gattServer.disconnect();
+            gattServer = null;
+            printerCharacteristic = null;
+          }
+          isConnected = false;
+          window.printerAPI.isConnected = false;
+          setStatus('');
+          connectBtn.innerText = '🖨️ connect printer';
+          spinBtn.style.display = 'none'; // Hide spin button
+        } catch (error) {
+          console.error('Disconnect error:', error);
+          setStatus('❌ Disconnect failed', true);
+        }
+      }
+
+      connectBtn.addEventListener('click', () => {
+        if (!isConnected) {
+          connectPrinter();
+        } else {
+          disconnectPrinter();
+        }
+      });
+
+      function formatDate(date) {
+        const d = date.getDate().toString().padStart(2, '0');
+        const m = (date.getMonth() + 1).toString().padStart(2, '0');
+        const y = date.getFullYear();
+        return `${d}/${m}/${y}`;
+      }
+
+      function buildReceipt(prizeLabel, receiptNumber) {
+        const encoder = new TextEncoder();
+        const today = new Date();
+        const tomorrow = new Date(today);
+        tomorrow.setDate(tomorrow.getDate() + 1);
+        const expiry = new Date(today);
+        expiry.setDate(expiry.getDate() + 30);
+
+        const lines = [
+          '',
+          'LUCKY DRAW',
+          'CONGRATULATIONS',
+          'YOU ARE ENTITLED',
+          '',
+          `FREE ${prizeLabel}`,
+          'FOR ANY PURCHASE',
+          '(EXCEPT OPENING PROMOTION)',
+          '',
+          `VALID FROM ${formatDate(tomorrow)}`,
+          `TILL ${formatDate(expiry)}`,
+          `Receipt No: ${receiptNumber}`,
+          '',
+          ''
+        ];
+        const text = lines.join('\n');
+
+        const commands = [
+          0x1B, 0x40,
+          0x1B, 0x52, 0x00,
+          0x1B, 0x21, 0x00,
+          0x1B, 0x61, 0x01,
+          ...encoder.encode(text),
+          0x1B, 0x64, 0x03,
+          0x1D, 0x56, 0x41, 0x00
+        ];
+        return new Uint8Array(commands);
+      }
+
+      async function printWinningPrize(prizeLabel, receiptNumber) {
+        if (!isConnected || !printerCharacteristic) return;
+
+        try {
+          const receipt = buildReceipt(prizeLabel, receiptNumber);
+          await printerCharacteristic.writeValue(receipt);
+          setStatus('✅ Receipt printed');
+        } catch (error) {
+          console.error('Print error:', error);
+          setStatus(`❌ Print failed: ${error.message}`, true);
+        }
+      }
+
+      window.printerAPI.printWinningPrize = printWinningPrize;
+    })();
+  </script>
+</body>
+</html>

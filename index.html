@@ -139,7 +139,7 @@
   </style>
 </head>
 <body>
-  <h1>🎡 wheel of fortune</h1>
+  <h1>UL heel of fortune</h1>
 
   <div class="wheel-wrapper">
     <canvas id="wheelCanvas" width="700" height="700"></canvas>
@@ -187,16 +187,17 @@
     const resultDiv = document.getElementById('result');
 
     let spinning = false;
-    let currentRotation = 0;
+    let currentRotation = 0; // always normalized to [0, 2π)
     let animationFrame = null;
     let spinStartTime = null;
     const spinDuration = 8000; // 8 seconds
     let spinStartRotation = 0;
     let spinTargetRotation = 0;
 
+    const TWO_PI = 2 * Math.PI;
+
     function normalizeAngle(angle) {
-      const twoPi = 2 * Math.PI;
-      return ((angle % twoPi) + twoPi) % twoPi;
+      return ((angle % TWO_PI) + TWO_PI) % TWO_PI;
     }
 
     function drawWheel() {
@@ -215,8 +216,8 @@
         return;
       }
 
-      const segmentAngle = (2 * Math.PI) / prizes.length;
-      let startAngle = currentRotation;
+      const segmentAngle = TWO_PI / prizes.length;
+      let startAngle = currentRotation; // already normalized
 
       for (let i = 0; i < prizes.length; i++) {
         const prize = prizes[i];
@@ -248,7 +249,7 @@
       }
 
       ctx.beginPath();
-      ctx.arc(centerX, centerY, 30, 0, 2 * Math.PI);
+      ctx.arc(centerX, centerY, 30, 0, TWO_PI);
       ctx.fillStyle = '#333';
       ctx.shadowBlur = 0;
       ctx.fill();
@@ -309,17 +310,18 @@
       const pointerAngle = Math.atan2(pointerTip.y - centerY, pointerTip.x - centerX);
       const normalizedPointerAngle = normalizeAngle(pointerAngle);
 
-      const segmentAngle = (2 * Math.PI) / prizes.length;
+      const segmentAngle = TWO_PI / prizes.length;
       const randomOffset = Math.random() * segmentAngle;
       const targetAngleInWheel = selectedIndex * segmentAngle + randomOffset;
+      // Desired final normalized rotation
       let targetBaseRotation = normalizeAngle(normalizedPointerAngle - targetAngleInWheel);
 
       // 12-20 full turns for dramatic effect
       const extraFullTurns = 12 + Math.floor(Math.random() * 9);
-      const extraAngle = extraFullTurns * 2 * Math.PI;
-      spinTargetRotation = targetBaseRotation + extraAngle;
+      const extraAngle = extraFullTurns * TWO_PI;
+      spinTargetRotation = targetBaseRotation + extraAngle; // not normalized, we'll keep it full for smooth interpolation
 
-      spinStartRotation = currentRotation;
+      spinStartRotation = currentRotation; // currentRotation is normalized
       spinStartTime = performance.now();
       spinning = true;
       spinBtn.disabled = true;
@@ -332,16 +334,23 @@
         // EaseOutExpo: extremely smooth deceleration
         const easeOutExpo = progress === 1 ? 1 : 1 - Math.pow(2, -10 * progress);
 
-        currentRotation = spinStartRotation + (spinTargetRotation - spinStartRotation) * easeOutExpo;
+        // Interpolate rotation
+        const rawRotation = spinStartRotation + (spinTargetRotation - spinStartRotation) * easeOutExpo;
+        // Normalize for drawing and for next frame's start (to keep numbers manageable)
+        currentRotation = normalizeAngle(rawRotation);
         drawWheel();
 
         if (progress < 1) {
           animationFrame = requestAnimationFrame(animateSpin);
         } else {
-          // NO reassignment – currentRotation already holds the final value
-          // Determine winning prize using normalized angle
-          const currentNormalized = normalizeAngle(currentRotation);
-          const wheelAngleAtPointer = normalizeAngle(normalizedPointerAngle - currentNormalized);
+          // Ensure final rotation exactly equals target (after normalization)
+          // Note: spinTargetRotation modulo 2π should equal targetBaseRotation
+          // But due to floating point, we set it exactly.
+          currentRotation = targetBaseRotation; // exact final position
+          drawWheel();
+
+          // Determine winning prize (no need to recompute, but for safety)
+          const wheelAngleAtPointer = normalizeAngle(normalizedPointerAngle - currentRotation);
           const segmentIndex = Math.floor(wheelAngleAtPointer / segmentAngle);
           const actualIndex = Math.min(segmentIndex, prizes.length - 1);
           const wonPrize = prizes[actualIndex];
@@ -365,7 +374,7 @@
     drawWheel();
   </script>
 
-  <!-- Printer integration -->
+  <!-- Printer integration (unchanged) -->
   <script>
     (function() {
       const connectBtn = document.getElementById('connectPrinterButton');

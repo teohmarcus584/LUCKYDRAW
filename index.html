@@ -53,16 +53,18 @@
       background: #0a7b3c;
       color: white;
       border: none;
-      border-radius: 60px;
-      padding: 20px 40px;
-      font-size: 1.8rem;
+      border-radius: 50%;
+      width: 100px;
+      height: 100px;
+      font-size: 1.4rem;
       font-weight: bold;
       box-shadow: 0 4px 15px rgba(0,0,0,0.3);
       cursor: pointer;
       transition: all 0.2s;
       z-index: 10;
-      white-space: nowrap;
-      min-width: 180px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
       border: 2px solid white;
     }
     #spinButton:hover {
@@ -129,9 +131,9 @@
     @media (max-width: 480px) {
       h1 { font-size: 1.5rem; }
       #spinButton {
-        font-size: 1.4rem;
-        padding: 15px 25px;
-        min-width: 140px;
+        width: 80px;
+        height: 80px;
+        font-size: 1.1rem;
       }
     }
   </style>
@@ -158,18 +160,18 @@
       { label: "15ML TRAVEL PERFUME RM 75", weight: 3 },
       { label: "CAR AROMATIC RM 38", weight: 5 },
       { label: "LA PREVE 100ML RM 280", weight: 0 },
-      { label: "CAR AROMATIC RM 38", weight: 0 },
+      { label: "CAR AROMATIC RM 38", weight: 5 },
       { label: "100ML SIGNATURE EDP RM 180", weight: 0 },
       { label: "CAR AROMATIC RM 38", weight: 5 },
       { label: "200ML REED DIFFUSER RM 89", weight: 0 },
-      { label: "NO WIN", weight: 0 },
+      { label: "CAR AROMATIC RM 38", weight: 5 },
       { label: "500ML BODY WASH RM 67", weight: 0 },
-      { label: "CAR AROMATIC RM 38", weight: 0 },
-      { label: "300ML LOTION RM 109", weight: 0 },
-      { label: "15ML TRAVEL PERFUME RM 75", weight: 0 },
-      { label: "100ML ROOM SPRAY RM 89", weight: 0 },
       { label: "15ML TRAVEL PERFUME RM 75", weight: 3 },
-      { label: "100ML PILLOW MIST RM 75", weight: 0 },
+      { label: "300ML LOTION RM 109", weight: 1 },
+      { label: "15ML TRAVEL PERFUME RM 75", weight: 3 },
+      { label: "100ML ROOM SPRAY RM 89", weight: 0 },
+      { label: "NO WIN", weight: 0 },
+      { label: "100ML PILLOW MIST RM 75", weight: 1 },
       { label: "NO WIN", weight: 0 },
       { label: "HUMIDIFIER MACHINE RM 249", weight: 0 },
     ];
@@ -424,7 +426,7 @@
 
           setStatus('✅ Printer ready!');
           connectBtn.innerText = '🖨️ disconnect';
-          spinBtn.style.display = 'block'; // Show spin button (centered via CSS)
+          spinBtn.style.display = 'flex'; // Show spin button (flex for centering)
         } catch (error) {
           console.error('Connection error:', error);
           setStatus(`❌ Failed: ${error.message}`, true);

@@ -190,7 +190,7 @@
     let currentRotation = 0;
     let animationFrame = null;
     let spinStartTime = null;
-    const spinDuration = 4000;
+    const spinDuration = 6000; // 6 seconds for a more dramatic effect
     let spinStartRotation = 0;
     let spinTargetRotation = 0;
 
@@ -330,9 +330,10 @@
       function animateSpin(now) {
         const elapsed = now - spinStartTime;
         let progress = Math.min(elapsed / spinDuration, 1);
-        const easeOutQuart = 1 - Math.pow(1 - progress, 4);
+        // EaseOutQuint: 1 - (1 - t)^5 – very smooth deceleration for "near miss" effect
+        const easeOutQuint = 1 - Math.pow(1 - progress, 5);
 
-        currentRotation = spinStartRotation + (spinTargetRotation - spinStartRotation) * easeOutQuart;
+        currentRotation = spinStartRotation + (spinTargetRotation - spinStartRotation) * easeOutQuint;
         drawWheel();
 
         if (progress < 1) {
@@ -426,7 +427,7 @@
 
           setStatus('✅ Printer ready!');
           connectBtn.innerText = '🖨️ disconnect';
-          spinBtn.style.display = 'flex'; // Show spin button (flex for centering)
+          spinBtn.style.display = 'flex'; // Show spin button
         } catch (error) {
           console.error('Connection error:', error);
           setStatus(`❌ Failed: ${error.message}`, true);

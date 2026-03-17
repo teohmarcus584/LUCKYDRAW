@@ -190,7 +190,7 @@
     let currentRotation = 0;
     let animationFrame = null;
     let spinStartTime = null;
-    const spinDuration = 6000; // 6 seconds for a more dramatic effect
+    const spinDuration = 8000; // 8 seconds for maximum drama
     let spinStartRotation = 0;
     let spinTargetRotation = 0;
 
@@ -316,7 +316,8 @@
       const targetAngleInWheel = selectedIndex * segmentAngle + randomOffset;
       let targetBaseRotation = normalizeAngle(normalizedPointerAngle - targetAngleInWheel);
 
-      const extraFullTurns = 10 + Math.floor(Math.random() * 7);
+      // More full turns for longer, more exciting spin
+      const extraFullTurns = 12 + Math.floor(Math.random() * 9); // 12-20 turns
       const extraAngle = extraFullTurns * 2 * Math.PI;
       spinTargetRotation = targetBaseRotation + extraAngle;
 
@@ -330,10 +331,10 @@
       function animateSpin(now) {
         const elapsed = now - spinStartTime;
         let progress = Math.min(elapsed / spinDuration, 1);
-        // EaseOutQuint: 1 - (1 - t)^5 – very smooth deceleration for "near miss" effect
-        const easeOutQuint = 1 - Math.pow(1 - progress, 5);
+        // EaseOutExpo: very slow final approach – perfect for "near miss"
+        const easeOutExpo = progress === 1 ? 1 : 1 - Math.pow(2, -10 * progress);
 
-        currentRotation = spinStartRotation + (spinTargetRotation - spinStartRotation) * easeOutQuint;
+        currentRotation = spinStartRotation + (spinTargetRotation - spinStartRotation) * easeOutExpo;
         drawWheel();
 
         if (progress < 1) {

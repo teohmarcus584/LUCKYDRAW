@@ -27,7 +27,8 @@
       color: #111;
       text-align: center;
     }
-    .wheel-container {
+    .wheel-wrapper {
+      position: relative;
       display: flex;
       justify-content: center;
       margin: 10px 0 20px 0;
@@ -44,14 +45,47 @@
       box-shadow: 0 2px 8px rgba(0,0,0,0.05);
       border: 1px solid #eee;
     }
+    #spinButton {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: #0a7b3c;
+      color: white;
+      border: none;
+      border-radius: 60px;
+      padding: 20px 40px;
+      font-size: 1.8rem;
+      font-weight: bold;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+      cursor: pointer;
+      transition: all 0.2s;
+      z-index: 10;
+      white-space: nowrap;
+      min-width: 180px;
+      border: 2px solid white;
+    }
+    #spinButton:hover {
+      background: #0c8f47;
+      transform: translate(-50%, -50%) scale(1.05);
+    }
+    #spinButton:active {
+      transform: translate(-50%, -50%) scale(0.95);
+    }
+    #spinButton:disabled {
+      opacity: 0.5;
+      pointer-events: none;
+      background: #ccc;
+    }
     .controls {
       display: flex;
-      justify-content: center;
+      flex-direction: column;
+      align-items: center;
       gap: 12px;
-      flex-wrap: wrap;
       margin: 16px 0 8px 0;
+      width: 100%;
     }
-    button {
+    #connectPrinterButton {
       background: white;
       border: 1px solid #ccc;
       border-radius: 40px;
@@ -66,17 +100,12 @@
       touch-action: manipulation;
       min-width: 140px;
     }
-    button:hover {
+    #connectPrinterButton:hover {
       background: #f2f2f2;
     }
-    button:active {
+    #connectPrinterButton:active {
       background: #e8e8e8;
       transform: scale(0.98);
-    }
-    button:disabled {
-      opacity: 0.5;
-      pointer-events: none;
-      background: #f0f0f0;
     }
     #printerStatus {
       text-align: center;
@@ -99,18 +128,23 @@
     }
     @media (max-width: 480px) {
       h1 { font-size: 1.5rem; }
+      #spinButton {
+        font-size: 1.4rem;
+        padding: 15px 25px;
+        min-width: 140px;
+      }
     }
   </style>
 </head>
 <body>
   <h1>🎡 wheel of fortune</h1>
 
-  <div class="wheel-container">
+  <div class="wheel-wrapper">
     <canvas id="wheelCanvas" width="700" height="700"></canvas>
+    <button id="spinButton" style="display:none;">SPIN</button>
   </div>
 
   <div class="controls">
-    <button id="spinButton" style="display:none;">spin</button>
     <button id="connectPrinterButton">🖨️ connect printer</button>
   </div>
   <div id="printerStatus"></div>
@@ -122,19 +156,19 @@
     let prizes = [
       { label: "CAR AROMATIC RM 38", weight: 5 },
       { label: "15ML TRAVEL PERFUME RM 75", weight: 3 },
-      { label: "NO WIN", weight: 0 },
+      { label: "CAR AROMATIC RM 38", weight: 5 },
       { label: "LA PREVE 100ML RM 280", weight: 0 },
-      { label: "NO WIN", weight: 0 },
+      { label: "CAR AROMATIC RM 38", weight: 0 },
       { label: "100ML SIGNATURE EDP RM 180", weight: 0 },
-      { label: "NO WIN", weight: 0 },
+      { label: "CAR AROMATIC RM 38", weight: 5 },
       { label: "200ML REED DIFFUSER RM 89", weight: 0 },
       { label: "NO WIN", weight: 0 },
       { label: "500ML BODY WASH RM 67", weight: 0 },
-      { label: "NO WIN", weight: 0 },
+      { label: "CAR AROMATIC RM 38", weight: 0 },
       { label: "300ML LOTION RM 109", weight: 0 },
-      { label: "NO WIN", weight: 0 },
+      { label: "15ML TRAVEL PERFUME RM 75", weight: 0 },
       { label: "100ML ROOM SPRAY RM 89", weight: 0 },
-      { label: "NO WIN", weight: 0 },
+      { label: "15ML TRAVEL PERFUME RM 75", weight: 3 },
       { label: "100ML PILLOW MIST RM 75", weight: 0 },
       { label: "NO WIN", weight: 0 },
       { label: "HUMIDIFIER MACHINE RM 249", weight: 0 },
@@ -228,7 +262,7 @@
       ctx.fill();
     }
 
-    // Spin function with mandatory receipt number prompt (NO CONFETTI)
+    // Spin function with mandatory receipt number prompt
     function spinWheel() {
       if (spinning) return;
 
@@ -314,7 +348,7 @@
           spinBtn.disabled = false;
           resultDiv.innerText = `🎉 you won: ${wonPrize.label}`;
 
-          // Print with the collected receipt number (NO CONFETTI)
+          // Print with the collected receipt number
           if (window.printerAPI && window.printerAPI.isConnected) {
             window.printerAPI.printWinningPrize(wonPrize.label, receiptNumber);
           }
@@ -330,7 +364,7 @@
     drawWheel();
   </script>
 
-  <!-- Printer integration (no test button) -->
+  <!-- Printer integration -->
   <script>
     (function() {
       const connectBtn = document.getElementById('connectPrinterButton');
@@ -390,7 +424,7 @@
 
           setStatus('✅ Printer ready!');
           connectBtn.innerText = '🖨️ disconnect';
-          spinBtn.style.display = 'inline-block'; // Show spin button
+          spinBtn.style.display = 'block'; // Show spin button (centered via CSS)
         } catch (error) {
           console.error('Connection error:', error);
           setStatus(`❌ Failed: ${error.message}`, true);

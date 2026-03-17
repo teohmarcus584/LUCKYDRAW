@@ -190,7 +190,7 @@
     let currentRotation = 0;
     let animationFrame = null;
     let spinStartTime = null;
-    const spinDuration = 8000; // 8 seconds for maximum drama
+    const spinDuration = 8000; // 8 seconds
     let spinStartRotation = 0;
     let spinTargetRotation = 0;
 
@@ -264,7 +264,6 @@
       ctx.fill();
     }
 
-    // Spin function with mandatory receipt number prompt
     function spinWheel() {
       if (spinning) return;
 
@@ -282,7 +281,6 @@
         }
       }
 
-      // Proceed with spin
       if (prizes.length === 0) {
         resultDiv.innerText = 'Add some prizes first!';
         return;
@@ -316,8 +314,8 @@
       const targetAngleInWheel = selectedIndex * segmentAngle + randomOffset;
       let targetBaseRotation = normalizeAngle(normalizedPointerAngle - targetAngleInWheel);
 
-      // More full turns for longer, more exciting spin
-      const extraFullTurns = 12 + Math.floor(Math.random() * 9); // 12-20 turns
+      // 12-20 full turns for dramatic effect
+      const extraFullTurns = 12 + Math.floor(Math.random() * 9);
       const extraAngle = extraFullTurns * 2 * Math.PI;
       spinTargetRotation = targetBaseRotation + extraAngle;
 
@@ -331,7 +329,7 @@
       function animateSpin(now) {
         const elapsed = now - spinStartTime;
         let progress = Math.min(elapsed / spinDuration, 1);
-        // EaseOutExpo: very slow final approach – perfect for "near miss"
+        // EaseOutExpo: extremely smooth deceleration
         const easeOutExpo = progress === 1 ? 1 : 1 - Math.pow(2, -10 * progress);
 
         currentRotation = spinStartRotation + (spinTargetRotation - spinStartRotation) * easeOutExpo;
@@ -340,10 +338,13 @@
         if (progress < 1) {
           animationFrame = requestAnimationFrame(animateSpin);
         } else {
-          currentRotation = normalizeAngle(spinTargetRotation);
+          // FINAL FRAME: ensure exact target (no normalization jump)
+          currentRotation = spinTargetRotation;
           drawWheel();
 
-          const wheelAngleAtPointer = normalizeAngle(normalizedPointerAngle - currentRotation);
+          // Determine winning prize (using normalized angle for calculation)
+          const currentNormalized = normalizeAngle(currentRotation);
+          const wheelAngleAtPointer = normalizeAngle(normalizedPointerAngle - currentNormalized);
           const segmentIndex = Math.floor(wheelAngleAtPointer / segmentAngle);
           const actualIndex = Math.min(segmentIndex, prizes.length - 1);
           const wonPrize = prizes[actualIndex];
@@ -352,7 +353,6 @@
           spinBtn.disabled = false;
           resultDiv.innerText = `🎉 you won: ${wonPrize.label}`;
 
-          // Print with the collected receipt number
           if (window.printerAPI && window.printerAPI.isConnected) {
             window.printerAPI.printWinningPrize(wonPrize.label, receiptNumber);
           }
@@ -428,7 +428,7 @@
 
           setStatus('✅ Printer ready!');
           connectBtn.innerText = '🖨️ disconnect';
-          spinBtn.style.display = 'flex'; // Show spin button
+          spinBtn.style.display = 'flex';
         } catch (error) {
           console.error('Connection error:', error);
           setStatus(`❌ Failed: ${error.message}`, true);
@@ -450,7 +450,7 @@
           window.printerAPI.isConnected = false;
           setStatus('');
           connectBtn.innerText = '🖨️ connect printer';
-          spinBtn.style.display = 'none'; // Hide spin button
+          spinBtn.style.display = 'none';
         } catch (error) {
           console.error('Disconnect error:', error);
           setStatus('❌ Disconnect failed', true);

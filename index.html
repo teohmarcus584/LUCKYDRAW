@@ -4,6 +4,7 @@
   <base target="_top">
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=yes">
   <style>
+    /* (keep all styles exactly as before) */
     * {
       box-sizing: border-box;
       margin: 0;
@@ -139,7 +140,7 @@
   </style>
 </head>
 <body>
-  <h1>UL heel of fortune</h1>
+  <h1>🎡 wheel of fortune</h1>
 
   <div class="wheel-wrapper">
     <canvas id="wheelCanvas" width="700" height="700"></canvas>
@@ -217,7 +218,7 @@
       }
 
       const segmentAngle = TWO_PI / prizes.length;
-      let startAngle = currentRotation; // already normalized
+      let startAngle = currentRotation;
 
       for (let i = 0; i < prizes.length; i++) {
         const prize = prizes[i];
@@ -319,7 +320,7 @@
       // 12-20 full turns for dramatic effect
       const extraFullTurns = 12 + Math.floor(Math.random() * 9);
       const extraAngle = extraFullTurns * TWO_PI;
-      spinTargetRotation = targetBaseRotation + extraAngle; // not normalized, we'll keep it full for smooth interpolation
+      spinTargetRotation = targetBaseRotation + extraAngle; // not normalized, for interpolation
 
       spinStartRotation = currentRotation; // currentRotation is normalized
       spinStartTime = performance.now();
@@ -331,25 +332,23 @@
       function animateSpin(now) {
         const elapsed = now - spinStartTime;
         let progress = Math.min(elapsed / spinDuration, 1);
-        // EaseOutExpo: extremely smooth deceleration
-        const easeOutExpo = progress === 1 ? 1 : 1 - Math.pow(2, -10 * progress);
+        // EaseOutCubic: decelerates slightly faster at the end, reducing perceived jump
+        const easeOutCubic = 1 - Math.pow(1 - progress, 3);
 
         // Interpolate rotation
-        const rawRotation = spinStartRotation + (spinTargetRotation - spinStartRotation) * easeOutExpo;
-        // Normalize for drawing and for next frame's start (to keep numbers manageable)
+        const rawRotation = spinStartRotation + (spinTargetRotation - spinStartRotation) * easeOutCubic;
+        // Normalize for drawing
         currentRotation = normalizeAngle(rawRotation);
         drawWheel();
 
         if (progress < 1) {
           animationFrame = requestAnimationFrame(animateSpin);
         } else {
-          // Ensure final rotation exactly equals target (after normalization)
-          // Note: spinTargetRotation modulo 2π should equal targetBaseRotation
-          // But due to floating point, we set it exactly.
-          currentRotation = targetBaseRotation; // exact final position
+          // Set exactly the target normalized rotation
+          currentRotation = targetBaseRotation;
           drawWheel();
 
-          // Determine winning prize (no need to recompute, but for safety)
+          // Determine winning prize (should match selected prize)
           const wheelAngleAtPointer = normalizeAngle(normalizedPointerAngle - currentRotation);
           const segmentIndex = Math.floor(wheelAngleAtPointer / segmentAngle);
           const actualIndex = Math.min(segmentIndex, prizes.length - 1);

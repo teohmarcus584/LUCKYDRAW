@@ -140,7 +140,7 @@
   </style>
 </head>
 <body>
-  <h1>UL of fortune</h1>
+  <h1>🎡 wheel of fortune</h1>
 
   <div class="wheel-wrapper">
     <canvas id="wheelCanvas" width="700" height="700"></canvas>
@@ -332,11 +332,11 @@
       function animateSpin(now) {
         const elapsed = now - spinStartTime;
         let progress = Math.min(elapsed / spinDuration, 1);
-        // EaseOutCubic: decelerates slightly faster at the end
-        const easeOutCubic = 1 - Math.pow(1 - progress, 3);
+        // EaseOutQuart: stronger deceleration – very slow final approach
+        const easeOutQuart = 1 - Math.pow(1 - progress, 4);
 
         // Interpolate rotation (raw)
-        const rawRotation = spinStartRotation + (spinTargetRotation - spinStartRotation) * easeOutCubic;
+        const rawRotation = spinStartRotation + (spinTargetRotation - spinStartRotation) * easeOutQuart;
         // Normalize for drawing
         currentRotation = normalizeAngle(rawRotation);
         drawWheel();
@@ -345,7 +345,6 @@
           animationFrame = requestAnimationFrame(animateSpin);
         } else {
           // No extra assignment – currentRotation already equals targetBaseRotation
-          // (because rawRotation = spinTargetRotation, and its normalized value is targetBaseRotation)
           // Determine winning prize (should match selected prize)
           const wheelAngleAtPointer = normalizeAngle(normalizedPointerAngle - currentRotation);
           const segmentIndex = Math.floor(wheelAngleAtPointer / segmentAngle);

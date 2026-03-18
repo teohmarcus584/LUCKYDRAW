@@ -4,7 +4,7 @@
   <base target="_top">
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=yes">
   <style>
-    /* (styles unchanged) */
+    /* (all styles unchanged) */
     * {
       box-sizing: border-box;
       margin: 0;
@@ -129,6 +129,26 @@
       min-height: 3rem;
       color: #0a7b3c;
     }
+    /* New button style */
+    #checkButton {
+      background: #ff9800;
+      color: white;
+      border: none;
+      border-radius: 40px;
+      padding: 14px 24px;
+      font-size: 1.1rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.03);
+      -webkit-tap-highlight-color: transparent;
+      touch-action: manipulation;
+      min-width: 140px;
+      margin-top: 10px;
+    }
+    #checkButton:hover {
+      background: #f57c00;
+    }
     @media (max-width: 480px) {
       h1 { font-size: 1.5rem; }
       #spinButton {
@@ -149,6 +169,7 @@
 
   <div class="controls">
     <button id="connectPrinterButton">🖨️ connect printer</button>
+    <button id="checkButton">🔍 Check Lucky Draw</button>
   </div>
   <div id="printerStatus"></div>
   <div id="result"></div>
@@ -295,7 +316,6 @@
 
         // New number – store temporarily and return (no spin)
         storedReceiptNumber = receiptNumber;
-        // Optional: show a subtle hint? We'll keep it silent.
         return;
       }
 
@@ -384,6 +404,23 @@
 
     spinBtn.addEventListener('click', spinWheel);
     drawWheel();
+
+    // Check Lucky Draw button functionality
+    document.getElementById('checkButton').addEventListener('click', function() {
+      let receiptNumber = prompt("Enter receipt number to check:");
+      if (receiptNumber === null) return;
+      receiptNumber = receiptNumber.trim();
+      if (receiptNumber === "") {
+        alert("Receipt number cannot be empty.");
+        return;
+      }
+      const prize = localStorage.getItem('receipt_' + receiptNumber);
+      if (prize) {
+        alert(`Receipt ${receiptNumber} already claimed: ${prize}`);
+      } else {
+        alert(`Receipt ${receiptNumber} not found in records.`);
+      }
+    });
   </script>
 
   <!-- Printer integration (unchanged) -->

@@ -4,7 +4,6 @@
   <base target="_top">
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=yes">
   <style>
-    /* (all styles unchanged) */
     * {
       box-sizing: border-box;
       margin: 0;
@@ -129,25 +128,47 @@
       min-height: 3rem;
       color: #0a7b3c;
     }
-    /* New button style */
-    #checkButton {
-      background: #ff9800;
-      color: white;
-      border: none;
+    /* Button styles */
+    .action-buttons {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      justify-content: center;
+      margin-top: 10px;
+    }
+    .action-buttons button {
+      background: white;
+      border: 1px solid #ccc;
       border-radius: 40px;
-      padding: 14px 24px;
-      font-size: 1.1rem;
+      padding: 12px 20px;
+      font-size: 1rem;
       font-weight: 500;
+      color: #222;
       cursor: pointer;
       transition: all 0.2s;
       box-shadow: 0 1px 3px rgba(0,0,0,0.03);
       -webkit-tap-highlight-color: transparent;
       touch-action: manipulation;
       min-width: 140px;
-      margin-top: 10px;
+    }
+    .action-buttons button:hover {
+      background: #f2f2f2;
+    }
+    #checkButton {
+      background: #ff9800;
+      color: white;
+      border: none;
     }
     #checkButton:hover {
       background: #f57c00;
+    }
+    #claimButton {
+      background: #2196F3;
+      color: white;
+      border: none;
+    }
+    #claimButton:hover {
+      background: #1976D2;
     }
     @media (max-width: 480px) {
       h1 { font-size: 1.5rem; }
@@ -169,7 +190,10 @@
 
   <div class="controls">
     <button id="connectPrinterButton">🖨️ connect printer</button>
-    <button id="checkButton">🔍 Check Lucky Draw</button>
+    <div class="action-buttons">
+      <button id="checkButton">🔍 Check Lucky Draw</button>
+      <button id="claimButton">💰 Claim Receipt</button>
+    </div>
   </div>
   <div id="printerStatus"></div>
   <div id="result"></div>
@@ -290,6 +314,26 @@
       ctx.fill();
     }
 
+    // Helper to read receipt data (handles old string format)
+    function getReceiptData(receiptNumber) {
+      const data = localStorage.getItem('receipt_' + receiptNumber);
+      if (!data) return null;
+      try {
+        const obj = JSON.parse(data);
+        // If it's an object with prize property, return as is
+        if (obj && typeof obj === 'object' && obj.prize) return obj;
+      } catch (e) {
+        // Old format: just a string
+        return { prize: data, claimed: false, value: null };
+      }
+      return null;
+    }
+
+    // Save receipt data
+    function saveReceiptData(receiptNumber, data) {
+      localStorage.setItem('receipt_' + receiptNumber, JSON.stringify(data));
+    }
+
     // Spin function with receipt memory and duplicate check
     function spinWheel() {
       if (spinning) return;
@@ -297,10 +341,7 @@
       // If no receipt number stored, prompt and check storage
       if (storedReceiptNumber === null) {
         let receiptNumber = prompt("Please enter receipt number:");
-        if (receiptNumber === null) {
-          // User cancelled – do nothing
-          return;
-        }
+        if (receiptNumber === null) return;
         receiptNumber = receiptNumber.trim();
         if (receiptNumber === "") {
           alert("Receipt number cannot be empty.");
@@ -308,10 +349,10 @@
         }
 
         // Check if this receipt number already exists in localStorage
-        const existing = localStorage.getItem('receipt_' + receiptNumber);
+        const existing = getReceiptData(receiptNumber);
         if (existing !== null) {
-          resultDiv.innerText = `Receipt ${receiptNumber} already won: ${existing}. Cannot use again.`;
-          return; // Block further action
+          resultDiv.innerText = `Receipt ${receiptNumber} already won: ${existing.prize}${existing.claimed ? ' (claimed)' : ' (not claimed)'}. Cannot use again.`;
+          return;
         }
 
         // New number – store temporarily and return (no spin)
@@ -388,8 +429,8 @@
           spinBtn.disabled = false;
           resultDiv.innerText = `🎉 you won: ${wonPrize.label}`;
 
-          // Save the receipt number and prize to localStorage
-          localStorage.setItem('receipt_' + receiptNumber, wonPrize.label);
+          // Save the receipt number and prize as unclaimed
+          saveReceiptData(receiptNumber, { prize: wonPrize.label, claimed: false, value: null });
 
           if (window.printerAPI && window.printerAPI.isConnected) {
             window.printerAPI.printWinningPrize(wonPrize.label, receiptNumber);
@@ -414,12 +455,46 @@
         alert("Receipt number cannot be empty.");
         return;
       }
-      const prize = localStorage.getItem('receipt_' + receiptNumber);
-      if (prize) {
-        alert(`Receipt ${receiptNumber} already claimed: ${prize}`);
+      const data = getReceiptData(receiptNumber);
+      if (data) {
+        const status = data.claimed ? `Claimed (value: RM ${data.value || 'N/A'})` : "Not claimed yet";
+        alert(`Receipt ${receiptNumber} won: ${data.prize}\nStatus: ${status}`);
       } else {
         alert(`Receipt ${receiptNumber} not found in records.`);
       }
+    });
+
+    // Claim Receipt button functionality
+    document.getElementById('claimButton').addEventListener('click', function() {
+      let receiptNumber = prompt("Enter receipt number to claim:");
+      if (receiptNumber === null) return;
+      receiptNumber = receiptNumber.trim();
+      if (receiptNumber === "") {
+        alert("Receipt number cannot be empty.");
+        return;
+      }
+      const data = getReceiptData(receiptNumber);
+      if (!data) {
+        alert(`Receipt ${receiptNumber} not found.`);
+        return;
+      }
+      if (data.claimed) {
+        alert(`Receipt ${receiptNumber} already claimed with prize: ${data.prize} (value: RM ${data.value || 'N/A'}).`);
+        return;
+      }
+      // Prompt for value
+      let value = prompt(`Enter receipt value (RM) for prize ${data.prize}:`);
+      if (value === null) return;
+      value = value.trim();
+      if (value === "") {
+        alert("Value cannot be empty.");
+        return;
+      }
+      // Update data
+      data.claimed = true;
+      data.value = value;
+      saveReceiptData(receiptNumber, data);
+      alert(`Receipt ${receiptNumber} claimed successfully for prize ${data.prize} with value RM ${value}.`);
     });
   </script>
 

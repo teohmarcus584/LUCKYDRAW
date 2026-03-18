@@ -79,7 +79,6 @@
       pointer-events: none;
       background: #ccc;
     }
-    /* Gold glowing pulse animation for valid token */
     @keyframes pulse-glow {
       0% {
         box-shadow: 0 0 0 0 rgba(255, 215, 0, 0.7), 0 4px 15px rgba(0,0,0,0.3);
@@ -97,7 +96,6 @@
     #spinButton.pulse-glow {
       animation: pulse-glow 1.5s infinite;
     }
-    /* Coin token animation */
     .coin-token {
       position: fixed;
       width: 40px;
@@ -379,7 +377,7 @@
       localStorage.setItem('receipt_' + receiptNumber, JSON.stringify(data));
     }
 
-    // Sound effects using Web Audio API
+    // Sound effects using Web Audio API (enhanced realistic versions)
     let audioContext = null;
 
     function initAudio() {
@@ -392,15 +390,47 @@
       try {
         initAudio();
         const now = audioContext.currentTime;
-        const osc = audioContext.createOscillator();
-        const gain = audioContext.createGain();
-        osc.connect(gain);
-        gain.connect(audioContext.destination);
-        osc.frequency.value = 800;
-        gain.gain.setValueAtTime(0.3, now);
-        gain.gain.exponentialRampToValueAtTime(0.01, now + 0.2);
-        osc.start(now);
-        osc.stop(now + 0.2);
+        
+        // Main tone (metallic ding)
+        const osc1 = audioContext.createOscillator();
+        const gain1 = audioContext.createGain();
+        osc1.type = 'sine';
+        osc1.frequency.value = 1200;
+        gain1.gain.setValueAtTime(0.3, now);
+        gain1.gain.exponentialRampToValueAtTime(0.01, now + 0.15);
+        osc1.connect(gain1);
+        gain1.connect(audioContext.destination);
+        osc1.start(now);
+        osc1.stop(now + 0.15);
+        
+        // Second harmonic for richness
+        const osc2 = audioContext.createOscillator();
+        const gain2 = audioContext.createGain();
+        osc2.type = 'sine';
+        osc2.frequency.value = 1800;
+        gain2.gain.setValueAtTime(0.15, now);
+        gain2.gain.exponentialRampToValueAtTime(0.005, now + 0.1);
+        osc2.connect(gain2);
+        gain2.connect(audioContext.destination);
+        osc2.start(now);
+        osc2.stop(now + 0.1);
+        
+        // Tiny bit of noise for texture (coin impact)
+        const bufferSize = 4096;
+        const noiseBuffer = audioContext.createBuffer(1, bufferSize, audioContext.sampleRate);
+        const output = noiseBuffer.getChannelData(0);
+        for (let i = 0; i < bufferSize; i++) {
+          output[i] = Math.random() * 2 - 1;
+        }
+        const noise = audioContext.createBufferSource();
+        noise.buffer = noiseBuffer;
+        const noiseGain = audioContext.createGain();
+        noiseGain.gain.setValueAtTime(0.1, now);
+        noiseGain.gain.exponentialRampToValueAtTime(0.001, now + 0.05);
+        noise.connect(noiseGain);
+        noiseGain.connect(audioContext.destination);
+        noise.start(now);
+        noise.stop(now + 0.05);
       } catch (e) {
         console.log('Audio not supported');
       }
@@ -410,16 +440,47 @@
       try {
         initAudio();
         const now = audioContext.currentTime;
-        const osc = audioContext.createOscillator();
+        
+        // Whoosh sound using filtered noise with descending frequency
+        const bufferSize = 4096;
+        const noiseBuffer = audioContext.createBuffer(1, bufferSize, audioContext.sampleRate);
+        const output = noiseBuffer.getChannelData(0);
+        for (let i = 0; i < bufferSize; i++) {
+          output[i] = Math.random() * 2 - 1;
+        }
+        const noise = audioContext.createBufferSource();
+        noise.buffer = noiseBuffer;
+        
+        // Create a bandpass filter that sweeps down
+        const filter = audioContext.createBiquadFilter();
+        filter.type = 'bandpass';
+        filter.frequency.setValueAtTime(800, now);
+        filter.frequency.exponentialRampToValueAtTime(200, now + 0.5);
+        filter.Q.value = 5;
+        
         const gain = audioContext.createGain();
-        osc.connect(gain);
-        gain.connect(audioContext.destination);
-        osc.frequency.setValueAtTime(400, now);
-        osc.frequency.exponentialRampToValueAtTime(200, now + 0.3);
         gain.gain.setValueAtTime(0.2, now);
-        gain.gain.exponentialRampToValueAtTime(0.01, now + 0.3);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.5);
+        
+        noise.connect(filter);
+        filter.connect(gain);
+        gain.connect(audioContext.destination);
+        
+        noise.start(now);
+        noise.stop(now + 0.5);
+        
+        // Add a low descending tone for extra rumble
+        const osc = audioContext.createOscillator();
+        const oscGain = audioContext.createGain();
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(150, now);
+        osc.frequency.exponentialRampToValueAtTime(60, now + 0.4);
+        oscGain.gain.setValueAtTime(0.1, now);
+        oscGain.gain.exponentialRampToValueAtTime(0.001, now + 0.4);
+        osc.connect(oscGain);
+        oscGain.connect(audioContext.destination);
         osc.start(now);
-        osc.stop(now + 0.3);
+        osc.stop(now + 0.4);
       } catch (e) {
         console.log('Audio not supported');
       }
@@ -456,7 +517,7 @@
         const onTransitionEnd = () => {
           coin.style.display = 'none';
           coin.removeEventListener('transitionend', onTransitionEnd);
-          playCoinSound(); // Play ding sound
+          playCoinSound(); // Play enhanced coin sound
           resolve();
         };
         coin.addEventListener('transitionend', onTransitionEnd, { once: true });
@@ -501,7 +562,7 @@
       storedReceiptNumber = null; // clear for next spin
       spinBtn.classList.remove('pulse-glow'); // remove glow
 
-      // Play spin start sound
+      // Play spin start sound (enhanced)
       playSpinSound();
 
       if (prizes.length === 0) {

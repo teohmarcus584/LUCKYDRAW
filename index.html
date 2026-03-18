@@ -4,7 +4,7 @@
   <base target="_top">
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=yes">
   <style>
-    /* Minimalist & mobile‑friendly */
+    /* (all styles unchanged) */
     * {
       box-sizing: border-box;
       margin: 0;
@@ -155,7 +155,7 @@
 
   <!-- Main wheel script -->
   <script>
-    // ---------- Fixed prizes (edit as needed) ----------
+    // ---------- Data (fixed prizes) ----------
     let prizes = [
       { label: "CAR AROMATIC RM 38", weight: 5 },
       { label: "15ML TRAVEL PERFUME RM 75", weight: 3 },
@@ -195,7 +195,7 @@
     let spinStartRotation = 0;
     let spinTargetRotation = 0;
 
-    // For two‑click spin
+    // Store receipt number for two‑click behavior
     let storedReceiptNumber = null;
 
     const TWO_PI = 2 * Math.PI;
@@ -269,28 +269,31 @@
       ctx.fill();
     }
 
-    // Spin function – two‑click behavior
+    // Modified spin function: two‑click behavior, no message after storing
     function spinWheel() {
       if (spinning) return;
 
-      // First click: prompt for receipt number and store silently
+      // If no receipt number stored, prompt and store, then return (no spin)
       if (storedReceiptNumber === null) {
         let receiptNumber = prompt("Please enter receipt number:");
-        if (receiptNumber === null) return; // cancelled
+        if (receiptNumber === null) {
+          // User cancelled – do nothing
+          return;
+        }
         receiptNumber = receiptNumber.trim();
         if (receiptNumber === "") {
           alert("Receipt number cannot be empty.");
           return;
         }
         storedReceiptNumber = receiptNumber;
-        return; // wait for second click
+        // No message shown – number stored silently
+        return;
       }
 
-      // Second click: use stored number, then clear it
+      // If we have a stored receipt number, proceed to spin
       const receiptNumber = storedReceiptNumber;
-      storedReceiptNumber = null;
+      storedReceiptNumber = null; // clear for next spin
 
-      // Normal spin logic from here
       if (prizes.length === 0) {
         resultDiv.innerText = 'Add some prizes first!';
         return;
@@ -324,7 +327,7 @@
       const targetAngleInWheel = selectedIndex * segmentAngle + randomOffset;
       let targetBaseRotation = normalizeAngle(normalizedPointerAngle - targetAngleInWheel);
 
-      const extraFullTurns = 12 + Math.floor(Math.random() * 9); // 12‑20 turns
+      const extraFullTurns = 12 + Math.floor(Math.random() * 9);
       const extraAngle = extraFullTurns * TWO_PI;
       spinTargetRotation = targetBaseRotation + extraAngle;
 
@@ -371,18 +374,16 @@
     drawWheel();
   </script>
 
-  <!-- Printer integration with auto‑reconnect -->
+  <!-- Printer integration (unchanged) -->
   <script>
     (function() {
       const connectBtn = document.getElementById('connectPrinterButton');
       const spinBtn = document.getElementById('spinButton');
       const printerStatus = document.getElementById('printerStatus');
 
-      let lastDeviceId = localStorage.getItem('lastPrinterId') || null;
       let gattServer = null;
       let printerCharacteristic = null;
       let isConnected = false;
-      let currentDevice = null;
 
       window.printerAPI = {
         isConnected: false,
@@ -394,30 +395,20 @@
         printerStatus.style.background = isError ? '#ffeeee' : '#f0f0f0';
       }
 
-      // Handle disconnection
-      function onDisconnected(event) {
-        const device = event.target;
-        console.log('Device disconnected:', device.name);
-        isConnected = false;
-        window.printerAPI.isConnected = false;
-        spinBtn.style.display = 'none';
-        setStatus('⚠️ Printer disconnected. Click reconnect.');
-        connectBtn.innerText = '🖨️ reconnect';
-        gattServer = null;
-        printerCharacteristic = null;
-        // Keep lastDeviceId for future reconnects
-      }
-
-      // Connect to a specific device
-      async function connectToDevice(device) {
+      async function connectPrinter() {
         try {
-          setStatus(`Connecting to ${device.name || 'printer'}...`);
-          currentDevice = device;
-          gattServer = await device.gatt.connect();
-          setStatus('✅ GATT connected. Discovering services...');
+          setStatus('🔍 Requesting Bluetooth device...');
+          connectBtn.disabled = true;
 
-          // Set up disconnect listener
-          device.addEventListener('gattserverdisconnected', onDisconnected);
+          const device = await navigator.bluetooth.requestDevice({
+            acceptAllDevices: true,
+            optionalServices: ['000018f0-0000-1000-8000-00805f9b34fb']
+          });
+
+          setStatus(`✅ Device selected: ${device.name || 'Unnamed'}\nConnecting to GATT...`);
+
+          gattServer = await device.gatt.connect();
+          setStatus(`✅ GATT connected. Discovering services...`);
 
           const services = await gattServer.getPrimaryServices();
           let foundChar = null;
@@ -433,15 +424,13 @@
             if (foundChar) break;
           }
 
-          if (!foundChar) throw new Error('No writable characteristic found');
+          if (!foundChar) {
+            throw new Error('No writable characteristic found');
+          }
 
           printerCharacteristic = foundChar;
           isConnected = true;
           window.printerAPI.isConnected = true;
-
-          // Save device ID for future auto‑reconnect
-          lastDeviceId = device.id;
-          localStorage.setItem('lastPrinterId', lastDeviceId);
 
           setStatus('✅ Printer ready!');
           connectBtn.innerText = '🖨️ disconnect';
@@ -449,60 +438,8 @@
         } catch (error) {
           console.error('Connection error:', error);
           setStatus(`❌ Failed: ${error.message}`, true);
-          throw error;
-        }
-      }
-
-      // Auto‑reconnect on page load
-      async function attemptAutoReconnect() {
-        if (!lastDeviceId) return false;
-        try {
-          setStatus('🔍 Looking for last used printer...');
-          const devices = await navigator.bluetooth.getDevices();
-          const lastDevice = devices.find(d => d.id === lastDeviceId);
-          if (lastDevice) {
-            setStatus(`✅ Found last printer: ${lastDevice.name || 'Unnamed'}\nReconnecting...`);
-            await connectToDevice(lastDevice);
-            return true;
-          }
-        } catch (error) {
-          console.log('Auto‑reconnect failed:', error);
-        }
-        return false;
-      }
-
-      // Main connect function (called when button clicked)
-      async function connectPrinter() {
-        try {
-          connectBtn.disabled = true;
-
-          // If already connected, disconnect
-          if (isConnected) {
-            await disconnectPrinter();
-            return;
-          }
-
-          // First try to use the last known device
-          if (lastDeviceId) {
-            const devices = await navigator.bluetooth.getDevices();
-            const lastDevice = devices.find(d => d.id === lastDeviceId);
-            if (lastDevice) {
-              await connectToDevice(lastDevice);
-              connectBtn.disabled = false;
-              return;
-            }
-          }
-
-          // Otherwise open device chooser
-          const device = await navigator.bluetooth.requestDevice({
-            acceptAllDevices: true,
-            optionalServices: ['000018f0-0000-1000-8000-00805f9b34fb']
-          });
-
-          await connectToDevice(device);
-        } catch (error) {
-          console.error('Connection error:', error);
-          setStatus(`❌ Failed: ${error.message}`, true);
+          gattServer = null;
+          printerCharacteristic = null;
         } finally {
           connectBtn.disabled = false;
         }
@@ -520,21 +457,20 @@
           setStatus('');
           connectBtn.innerText = '🖨️ connect printer';
           spinBtn.style.display = 'none';
-          // Keep lastDeviceId in storage
         } catch (error) {
           console.error('Disconnect error:', error);
           setStatus('❌ Disconnect failed', true);
         }
       }
 
-      connectBtn.addEventListener('click', connectPrinter);
-
-      // Try to auto‑reconnect when page loads
-      attemptAutoReconnect().then(success => {
-        if (success) setStatus('✅ Auto‑reconnected to last printer');
+      connectBtn.addEventListener('click', () => {
+        if (!isConnected) {
+          connectPrinter();
+        } else {
+          disconnectPrinter();
+        }
       });
 
-      // --- Receipt building and printing (unchanged) ---
       function formatDate(date) {
         const d = date.getDate().toString().padStart(2, '0');
         const m = (date.getMonth() + 1).toString().padStart(2, '0');
@@ -545,6 +481,8 @@
       function buildReceipt(prizeLabel, receiptNumber) {
         const encoder = new TextEncoder();
         const today = new Date();
+        const tomorrow = new Date(today);
+        tomorrow.setDate(tomorrow.getDate() + 1);
         const expiry = new Date(today);
         expiry.setDate(expiry.getDate() + 30);
 
@@ -567,19 +505,20 @@
         const text = lines.join('\n');
 
         const commands = [
-          0x1B, 0x40,                     // Initialize printer
-          0x1B, 0x52, 0x00,               // USA character set
-          0x1B, 0x21, 0x00,               // Normal text
-          0x1B, 0x61, 0x01,               // Center align
+          0x1B, 0x40,
+          0x1B, 0x52, 0x00,
+          0x1B, 0x21, 0x00,
+          0x1B, 0x61, 0x01,
           ...encoder.encode(text),
-          0x1B, 0x64, 0x03,               // Feed 3 lines
-          0x1D, 0x56, 0x41, 0x00          // Full cut (remove if not supported)
+          0x1B, 0x64, 0x03,
+          0x1D, 0x56, 0x41, 0x00
         ];
         return new Uint8Array(commands);
       }
 
       async function printWinningPrize(prizeLabel, receiptNumber) {
         if (!isConnected || !printerCharacteristic) return;
+
         try {
           const receipt = buildReceipt(prizeLabel, receiptNumber);
           await printerCharacteristic.writeValue(receipt);

@@ -128,7 +128,6 @@
       min-height: 3rem;
       color: #0a7b3c;
     }
-    /* Button styles */
     .action-buttons {
       display: flex;
       gap: 12px;
@@ -236,7 +235,7 @@
     let currentRotation = 0; // always normalized to [0, 2π)
     let animationFrame = null;
     let spinStartTime = null;
-    const spinDuration = 10000; // 10 seconds
+    const spinDuration = 12000; // 10 seconds
     let spinStartRotation = 0;
     let spinTargetRotation = 0;
 
@@ -320,16 +319,13 @@
       if (!data) return null;
       try {
         const obj = JSON.parse(data);
-        // If it's an object with prize property, return as is
         if (obj && typeof obj === 'object' && obj.prize) return obj;
       } catch (e) {
-        // Old format: just a string
         return { prize: data, claimed: false, value: null };
       }
       return null;
     }
 
-    // Save receipt data
     function saveReceiptData(receiptNumber, data) {
       localStorage.setItem('receipt_' + receiptNumber, JSON.stringify(data));
     }
@@ -355,8 +351,9 @@
           return;
         }
 
-        // New number – store temporarily and return (no spin)
+        // New number – store temporarily and show confirmation message
         storedReceiptNumber = receiptNumber;
+        resultDiv.innerText = `Valid! Token added -- Spin the wheel, Good luck...`;
         return;
       }
 
@@ -490,7 +487,6 @@
         alert("Value cannot be empty.");
         return;
       }
-      // Update data
       data.claimed = true;
       data.value = value;
       saveReceiptData(receiptNumber, data);

@@ -79,6 +79,24 @@
       pointer-events: none;
       background: #ccc;
     }
+    /* Glowing pulse animation for valid token */
+    @keyframes pulse-glow {
+      0% {
+        box-shadow: 0 0 0 0 rgba(10, 123, 60, 0.7), 0 4px 15px rgba(0,0,0,0.3);
+        transform: translate(-50%, -50%) scale(1);
+      }
+      50% {
+        box-shadow: 0 0 20px 10px rgba(10, 123, 60, 0.9), 0 4px 15px rgba(0,0,0,0.3);
+        transform: translate(-50%, -50%) scale(1.05);
+      }
+      100% {
+        box-shadow: 0 0 0 0 rgba(10, 123, 60, 0.7), 0 4px 15px rgba(0,0,0,0.3);
+        transform: translate(-50%, -50%) scale(1);
+      }
+    }
+    #spinButton.pulse-glow {
+      animation: pulse-glow 1.5s infinite;
+    }
     .controls {
       display: flex;
       flex-direction: column;
@@ -351,15 +369,17 @@
           return;
         }
 
-        // New number – store temporarily and show confirmation message
+        // New number – store temporarily, show confirmation, and add pulse to spin button
         storedReceiptNumber = receiptNumber;
         resultDiv.innerText = `Valid! Token added -- Spin the wheel, Good luck...`;
+        spinBtn.classList.add('pulse-glow');
         return;
       }
 
       // If we have a stored receipt number, proceed to spin
       const receiptNumber = storedReceiptNumber;
       storedReceiptNumber = null; // clear for next spin
+      spinBtn.classList.remove('pulse-glow'); // remove glow
 
       if (prizes.length === 0) {
         resultDiv.innerText = 'Add some prizes first!';
@@ -577,6 +597,7 @@
           setStatus('');
           connectBtn.innerText = '🖨️ connect printer';
           spinBtn.style.display = 'none';
+          spinBtn.classList.remove('pulse-glow'); // remove pulse if any
         } catch (error) {
           console.error('Disconnect error:', error);
           setStatus('❌ Disconnect failed', true);

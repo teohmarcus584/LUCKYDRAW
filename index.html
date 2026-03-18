@@ -244,6 +244,7 @@
   <div id="printerStatus"></div>
   <div id="result"></div>
 
+  <!-- Main wheel script -->
   <script>
     // ---------- Data (fixed prizes) ----------
     let prizes = [
@@ -278,15 +279,15 @@
     const resultDiv = document.getElementById('result');
 
     let spinning = false;
-    let currentRotation = 0;
+    let currentRotation = 0; // always normalized to [0, 2π)
     let animationFrame = null;
     let spinStartTime = null;
-    const spinDuration = 10000;
+    const spinDuration = 10000; // 10 seconds
     let spinStartRotation = 0;
     let spinTargetRotation = 0;
 
-    // Store receipt number temporarily for two‑click spin
-    let pendingReceiptNumber = null;
+    // Store receipt number for two‑click behavior
+    let storedReceiptNumber = null;
 
     const TWO_PI = 2 * Math.PI;
 
@@ -295,7 +296,6 @@
     }
 
     function drawWheel() {
-      // (keep your existing drawWheel code – unchanged)
       const centerX = canvas.width / 2;
       const centerY = canvas.height / 2;
       const radius = Math.min(centerX, centerY) - 15;
@@ -360,17 +360,38 @@
       ctx.fill();
     }
 
-    // ---------- Audio (unchanged) ----------
+    // Helper to read receipt data (handles old string format)
+    function getReceiptData(receiptNumber) {
+      const data = localStorage.getItem('receipt_' + receiptNumber);
+      if (!data) return null;
+      try {
+        const obj = JSON.parse(data);
+        if (obj && typeof obj === 'object' && obj.prize) return obj;
+      } catch (e) {
+        return { prize: data, claimed: false, value: null };
+      }
+      return null;
+    }
+
+    function saveReceiptData(receiptNumber, data) {
+      localStorage.setItem('receipt_' + receiptNumber, JSON.stringify(data));
+    }
+
+    // Sound effects using Web Audio API (enhanced realistic versions)
     let audioContext = null;
+
     function initAudio() {
       if (!audioContext) {
         audioContext = new (window.AudioContext || window.webkitAudioContext)();
       }
     }
+
     function playCoinSound() {
       try {
         initAudio();
         const now = audioContext.currentTime;
+        
+        // Main tone (metallic ding)
         const osc1 = audioContext.createOscillator();
         const gain1 = audioContext.createGain();
         osc1.type = 'sine';
@@ -381,6 +402,8 @@
         gain1.connect(audioContext.destination);
         osc1.start(now);
         osc1.stop(now + 0.15);
+        
+        // Second harmonic for richness
         const osc2 = audioContext.createOscillator();
         const gain2 = audioContext.createGain();
         osc2.type = 'sine';
@@ -391,6 +414,8 @@
         gain2.connect(audioContext.destination);
         osc2.start(now);
         osc2.stop(now + 0.1);
+        
+        // Tiny bit of noise for texture (coin impact)
         const bufferSize = 4096;
         const noiseBuffer = audioContext.createBuffer(1, bufferSize, audioContext.sampleRate);
         const output = noiseBuffer.getChannelData(0);
@@ -410,10 +435,13 @@
         console.log('Audio not supported');
       }
     }
+
     function playSpinSound() {
       try {
         initAudio();
         const now = audioContext.currentTime;
+        
+        // Whoosh sound using filtered noise with descending frequency
         const bufferSize = 4096;
         const noiseBuffer = audioContext.createBuffer(1, bufferSize, audioContext.sampleRate);
         const output = noiseBuffer.getChannelData(0);
@@ -422,19 +450,26 @@
         }
         const noise = audioContext.createBufferSource();
         noise.buffer = noiseBuffer;
+        
+        // Create a bandpass filter that sweeps down
         const filter = audioContext.createBiquadFilter();
         filter.type = 'bandpass';
         filter.frequency.setValueAtTime(800, now);
         filter.frequency.exponentialRampToValueAtTime(200, now + 0.5);
         filter.Q.value = 5;
+        
         const gain = audioContext.createGain();
         gain.gain.setValueAtTime(0.2, now);
         gain.gain.exponentialRampToValueAtTime(0.001, now + 0.5);
+        
         noise.connect(filter);
         filter.connect(gain);
         gain.connect(audioContext.destination);
+        
         noise.start(now);
         noise.stop(now + 0.5);
+        
+        // Add a low descending tone for extra rumble
         const osc = audioContext.createOscillator();
         const oscGain = audioContext.createGain();
         osc.type = 'sawtooth';
@@ -451,89 +486,83 @@
       }
     }
 
-    // Coin animation (unchanged)
+    // Coin animation function – starts big and shrinks into the button
     function animateCoinToButton() {
       return new Promise((resolve) => {
         const coin = document.getElementById('coinToken');
         const spinBtnRect = spinBtn.getBoundingClientRect();
         const targetX = spinBtnRect.left + spinBtnRect.width / 2;
         const targetY = spinBtnRect.top + spinBtnRect.height / 2;
+
+        // Start position: near the wheel (e.g., bottom right of wheel)
         const wheelRect = canvas.getBoundingClientRect();
         const startX = wheelRect.right - 30;
         const startY = wheelRect.bottom - 30;
 
+        // Set initial position and size (big scale 1.5)
         coin.style.display = 'flex';
         coin.style.left = startX + 'px';
         coin.style.top = startY + 'px';
         coin.style.transform = 'translate(0, 0) scale(1.5)';
+
+        // Force reflow
         coin.offsetHeight;
+
+        // Animate to target with shrink to normal scale
         const dx = targetX - startX;
         const dy = targetY - startY;
         coin.style.transform = `translate(${dx}px, ${dy}px) scale(1)`;
 
+        // After animation, hide coin, play sound, and resolve
         const onTransitionEnd = () => {
           coin.style.display = 'none';
           coin.removeEventListener('transitionend', onTransitionEnd);
-          playCoinSound();
+          playCoinSound(); // Play enhanced coin sound
           resolve();
         };
         coin.addEventListener('transitionend', onTransitionEnd, { once: true });
       });
     }
 
-    // ---------- Google Sheets communication ----------
-    function showError(msg) {
-      resultDiv.innerText = '❌ ' + msg;
-    }
-
-    // Step 1: Enter receipt and check if it exists
-    function requestReceiptAndCheck() {
+    // Spin function with receipt memory and duplicate check
+    async function spinWheel() {
       if (spinning) return;
 
-      let receiptNumber = prompt("Please enter receipt number:");
-      if (receiptNumber === null) return;
-      receiptNumber = receiptNumber.trim();
-      if (receiptNumber === "") {
-        alert("Receipt number cannot be empty.");
+      // If no receipt number stored, prompt and check storage
+      if (storedReceiptNumber === null) {
+        let receiptNumber = prompt("Please enter receipt number:");
+        if (receiptNumber === null) return;
+        receiptNumber = receiptNumber.trim();
+        if (receiptNumber === "") {
+          alert("Receipt number cannot be empty.");
+          return;
+        }
+
+        // Check if this receipt number already exists in localStorage
+        const existing = getReceiptData(receiptNumber);
+        if (existing !== null) {
+          resultDiv.innerText = `Receipt ${receiptNumber} already won: ${existing.prize}${existing.claimed ? ' (claimed)' : ' (not claimed)'}. Cannot use again.`;
+          return;
+        }
+
+        // New number – store temporarily, animate coin, then show pulse
+        storedReceiptNumber = receiptNumber;
+        resultDiv.innerText = `Valid! Token added -- Spin the wheel, Good luck...`;
+
+        // Animate coin to button (sound plays at end of animation)
+        await animateCoinToButton();
+
+        // Add gold pulse to spin button
+        spinBtn.classList.add('pulse-glow');
         return;
       }
 
-      // Call server to check existence
-      resultDiv.innerText = 'Checking receipt...';
-      google.script.run
-        .withSuccessHandler((exists) => {
-          if (exists) {
-            resultDiv.innerText = `Receipt ${receiptNumber} already used. Cannot spin again.`;
-            pendingReceiptNumber = null;
-          } else {
-            // Valid new receipt – store temporarily and proceed
-            pendingReceiptNumber = receiptNumber;
-            resultDiv.innerText = `Valid! Token added -- Spin the wheel, Good luck...`;
-            animateCoinToButton().then(() => {
-              spinBtn.classList.add('pulse-glow');
-            });
-          }
-        })
-        .withFailureHandler((error) => {
-          showError('Server error: ' + error.message);
-          pendingReceiptNumber = null;
-        })
-        .receiptExists(receiptNumber);
-    }
+      // If we have a stored receipt number, proceed to spin
+      const receiptNumber = storedReceiptNumber;
+      storedReceiptNumber = null; // clear for next spin
+      spinBtn.classList.remove('pulse-glow'); // remove glow
 
-    // Step 2: Perform the spin (only if pendingReceiptNumber is set)
-    function performSpin() {
-      if (!pendingReceiptNumber) {
-        // No receipt pending – start the process
-        requestReceiptAndCheck();
-        return;
-      }
-
-      // We have a pending receipt – spin now
-      const receiptNumber = pendingReceiptNumber;
-      pendingReceiptNumber = null;
-      spinBtn.classList.remove('pulse-glow');
-
+      // Play spin start sound (enhanced)
       playSpinSound();
 
       if (prizes.length === 0) {
@@ -601,17 +630,9 @@
           spinBtn.disabled = false;
           resultDiv.innerText = `🎉 you won: ${wonPrize.label}`;
 
-          // Save to Google Sheets
-          google.script.run
-            .withSuccessHandler(() => {
-              console.log('Saved to sheet');
-            })
-            .withFailureHandler((error) => {
-              showError('Failed to save to sheet: ' + error.message);
-            })
-            .saveReceipt(receiptNumber, wonPrize.label);
+          // Save the receipt number and prize as unclaimed
+          saveReceiptData(receiptNumber, { prize: wonPrize.label, claimed: false, value: null });
 
-          // Optional printer integration
           if (window.printerAPI && window.printerAPI.isConnected) {
             window.printerAPI.printWinningPrize(wonPrize.label, receiptNumber);
           }
@@ -623,81 +644,65 @@
       animationFrame = requestAnimationFrame(animateSpin);
     }
 
-    // Attach click handler to spin button
-    spinBtn.addEventListener('click', performSpin);
-
-    // Check button
-    document.getElementById('checkButton').addEventListener('click', function() {
-      let receiptNumber = prompt("Enter receipt number to check:");
-      if (!receiptNumber) return;
-      receiptNumber = receiptNumber.trim();
-      if (receiptNumber === "") {
-        alert("Receipt number cannot be empty.");
-        return;
-      }
-      google.script.run
-        .withSuccessHandler((data) => {
-          if (data) {
-            const status = data.claimed ? `Claimed (value: RM ${data.value || 'N/A'})` : "Not claimed yet";
-            alert(`Receipt ${receiptNumber} won: ${data.prize}\nStatus: ${status}`);
-          } else {
-            alert(`Receipt ${receiptNumber} not found in records.`);
-          }
-        })
-        .withFailureHandler((error) => {
-          showError('Check failed: ' + error.message);
-        })
-        .getReceiptData(receiptNumber);
-    });
-
-    // Claim button
-    document.getElementById('claimButton').addEventListener('click', function() {
-      let receiptNumber = prompt("Enter receipt number to claim:");
-      if (!receiptNumber) return;
-      receiptNumber = receiptNumber.trim();
-      if (receiptNumber === "") {
-        alert("Receipt number cannot be empty.");
-        return;
-      }
-      // First get current data
-      google.script.run
-        .withSuccessHandler((data) => {
-          if (!data) {
-            alert(`Receipt ${receiptNumber} not found.`);
-            return;
-          }
-          if (data.claimed) {
-            alert(`Receipt ${receiptNumber} already claimed with prize: ${data.prize} (value: RM ${data.value || 'N/A'}).`);
-            return;
-          }
-          let value = prompt(`Enter receipt value (RM) for prize ${data.prize}:`);
-          if (value === null) return;
-          value = value.trim();
-          if (value === "") {
-            alert("Value cannot be empty.");
-            return;
-          }
-          // Update claim
-          google.script.run
-            .withSuccessHandler(() => {
-              alert(`Receipt ${receiptNumber} claimed successfully for prize ${data.prize} with value RM ${value}.`);
-            })
-            .withFailureHandler((error) => {
-              showError('Claim failed: ' + error.message);
-            })
-            .claimReceipt(receiptNumber, value);
-        })
-        .withFailureHandler((error) => {
-          showError('Check failed: ' + error.message);
-        })
-        .getReceiptData(receiptNumber);
-    });
-
+    spinBtn.addEventListener('click', spinWheel);
     drawWheel();
 
-    // ---------- Printer integration (unchanged) ----------
+    // Check Lucky Draw button functionality
+    document.getElementById('checkButton').addEventListener('click', function() {
+      let receiptNumber = prompt("Enter receipt number to check:");
+      if (receiptNumber === null) return;
+      receiptNumber = receiptNumber.trim();
+      if (receiptNumber === "") {
+        alert("Receipt number cannot be empty.");
+        return;
+      }
+      const data = getReceiptData(receiptNumber);
+      if (data) {
+        const status = data.claimed ? `Claimed (value: RM ${data.value || 'N/A'})` : "Not claimed yet";
+        alert(`Receipt ${receiptNumber} won: ${data.prize}\nStatus: ${status}`);
+      } else {
+        alert(`Receipt ${receiptNumber} not found in records.`);
+      }
+    });
+
+    // Claim Receipt button functionality
+    document.getElementById('claimButton').addEventListener('click', function() {
+      let receiptNumber = prompt("Enter receipt number to claim:");
+      if (receiptNumber === null) return;
+      receiptNumber = receiptNumber.trim();
+      if (receiptNumber === "") {
+        alert("Receipt number cannot be empty.");
+        return;
+      }
+      const data = getReceiptData(receiptNumber);
+      if (!data) {
+        alert(`Receipt ${receiptNumber} not found.`);
+        return;
+      }
+      if (data.claimed) {
+        alert(`Receipt ${receiptNumber} already claimed with prize: ${data.prize} (value: RM ${data.value || 'N/A'}).`);
+        return;
+      }
+      // Prompt for value
+      let value = prompt(`Enter receipt value (RM) for prize ${data.prize}:`);
+      if (value === null) return;
+      value = value.trim();
+      if (value === "") {
+        alert("Value cannot be empty.");
+        return;
+      }
+      data.claimed = true;
+      data.value = value;
+      saveReceiptData(receiptNumber, data);
+      alert(`Receipt ${receiptNumber} claimed successfully for prize ${data.prize} with value RM ${value}.`);
+    });
+  </script>
+
+  <!-- Printer integration (unchanged) -->
+  <script>
     (function() {
       const connectBtn = document.getElementById('connectPrinterButton');
+      const spinBtn = document.getElementById('spinButton');
       const printerStatus = document.getElementById('printerStatus');
 
       let gattServer = null;
@@ -776,7 +781,7 @@
           setStatus('');
           connectBtn.innerText = '🖨️ connect printer';
           spinBtn.style.display = 'none';
-          spinBtn.classList.remove('pulse-glow');
+          spinBtn.classList.remove('pulse-glow'); // remove pulse if any
         } catch (error) {
           console.error('Disconnect error:', error);
           setStatus('❌ Disconnect failed', true);
@@ -801,6 +806,8 @@
       function buildReceipt(prizeLabel, receiptNumber) {
         const encoder = new TextEncoder();
         const today = new Date();
+        const tomorrow = new Date(today);
+        tomorrow.setDate(tomorrow.getDate() + 1);
         const expiry = new Date(today);
         expiry.setDate(expiry.getDate() + 30);
 

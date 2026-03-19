@@ -1099,7 +1099,7 @@
           const prize = await showSelectModal('Select prize won', uniquePrizes);
           if (prize === null) return; // cancelled
 
-          const value = await showInputModal('Enter receipt value (RM)', 'RM amount');
+          const value = await showInputModal('Enter NEW receipt value (RM)', 'RM amount');
           if (value === null || value === '') {
             if (value !== null) {
               await showAlertModal('Error', 'Value cannot be empty.');
@@ -1142,7 +1142,7 @@
         }
 
         // Proceed with normal claim
-        const value = await showInputModal(`Enter receipt value (RM) for prize ${data.prize}`, 'RM amount');
+        const value = await showInputModal(`Enter NEW receipt value (RM) for prize ${data.prize}`, 'RM amount');
         if (value === null || value === '') {
           if (value !== null) {
             await showAlertModal('Error', 'Value cannot be empty.');

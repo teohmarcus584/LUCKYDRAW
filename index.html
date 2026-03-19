@@ -286,7 +286,7 @@
     let currentRotation = 0;
     let animationFrame = null;
     let spinStartTime = null;
-    const spinDuration = 10000;
+    const spinDuration = 12000;
     let spinStartRotation = 0;
     let spinTargetRotation = 0;
 
@@ -714,7 +714,7 @@
           return;
         }
         if (data.claimed) {
-          alert(`Receipt ${receiptNumber} already claimed with prize: ${data.prize} (value: RM ${data.value || 'N/A'}).`);
+          alert(`Receipt ${receiptNumber} already claimed with prize: ${data.prize} (FOR TRANSACTION VALUE: RM ${data.value || 'N/A'}).`);
           return;
         }
 

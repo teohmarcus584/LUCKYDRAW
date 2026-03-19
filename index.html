@@ -464,7 +464,7 @@
       return ((angle % TWO_PI) + TWO_PI) % TWO_PI;
     }
 
-    // ---------- Improved Wheel Drawing (auto font scaling) ----------
+    // ---------- Improved Wheel Drawing (larger text) ----------
     function drawWheel() {
       const centerX = canvas.width / 2;
       const centerY = canvas.height / 2;
@@ -502,27 +502,25 @@
         // Prepare to draw text
         ctx.save();
         ctx.translate(centerX, centerY);
-        ctx.rotate(startAngle + segmentAngle / 2); // rotate to the middle of the segment
+        ctx.rotate(startAngle + segmentAngle / 2);
 
-        // Calculate available width for text: chord length at 60% of radius (to leave margin)
-        const textRadius = radius * 0.65; // position text closer to center
-        const chordLength = 2 * textRadius * Math.sin(segmentAngle / 2) * 0.9; // 90% of chord for padding
+        // --- Larger text settings ---
+        const textRadius = radius * 0.65;          // further out for more width
+        const chordLength = 2 * textRadius * Math.sin(segmentAngle / 2) * 0.95; // use 95% of chord
 
-        // Measure text and adjust font size
-        let fontSize = 18; // start with max size
+        let fontSize = 18;                          // start at 18px (was 16)
         const minFontSize = 10;
         const text = prize.label;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         ctx.font = `bold ${fontSize}px -apple-system, BlinkMacSystemFont, sans-serif`;
 
-        // Reduce font size until text fits or reaches minimum
+        // Reduce font size if still too wide
         while (fontSize > minFontSize && ctx.measureText(text).width > chordLength) {
           fontSize -= 1;
           ctx.font = `bold ${fontSize}px -apple-system, BlinkMacSystemFont, sans-serif`;
         }
 
-        // Draw text
         ctx.fillStyle = '#000';
         ctx.shadowColor = 'rgba(255,255,255,0.8)';
         ctx.shadowBlur = 5;

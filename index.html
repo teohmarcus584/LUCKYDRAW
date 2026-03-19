@@ -597,7 +597,7 @@
     }
 
     async function saveSpinResult(receiptNumber, prize) {
-      showLoading('Saving your spin...');
+      showLoading('Saving record...');
       try {
         const url = APPS_SCRIPT_URL;
         const formData = new URLSearchParams();
@@ -987,7 +987,7 @@
       }
     });
 
-    // ---------- CLAIM BUTTON with robust expiry check (30 days) and loading ----------
+    // ---------- CLAIM BUTTON with expiry check + manual entry for missing receipts ----------
     document.getElementById('claimButton').addEventListener('click', async function() {
       const receiptNumber = await showInputModal('Claim Receipt', 'Receipt number');
       if (receiptNumber === null || receiptNumber === '') {
@@ -999,16 +999,53 @@
 
       try {
         const data = await fetchReceiptData(receiptNumber);
+
+        // CASE 1: Receipt NOT found – allow manual claim
         if (!data) {
-          await showAlertModal('Not Found', `Receipt ${receiptNumber} not found.`);
+          const confirmManual = await showInputModal(
+            'Receipt not found. Enter prize won (e.g., "CAR AROMATIC RM 38")',
+            'Prize description'
+          );
+          if (confirmManual === null || confirmManual === '') {
+            if (confirmManual !== null) {
+              await showAlertModal('Error', 'Prize cannot be empty.');
+            }
+            return;
+          }
+          const prize = confirmManual;
+
+          const value = await showInputModal('Enter receipt value (RM)', 'RM amount');
+          if (value === null || value === '') {
+            if (value !== null) {
+              await showAlertModal('Error', 'Value cannot be empty.');
+            }
+            return;
+          }
+
+          // First save the spin (creates record with claimed=false)
+          const saved = await saveSpinResult(receiptNumber, prize);
+          if (!saved) {
+            await showAlertModal('Error', 'Failed to save record. Please try again.');
+            return;
+          }
+
+          // Then claim it
+          const claimed = await claimReceipt(receiptNumber, value);
+          if (claimed) {
+            await showAlertModal('Success', `Receipt ${receiptNumber} claimed successfully for prize ${prize} with value RM ${value}.`);
+          } else {
+            await showAlertModal('Error', 'Claim failed after saving record. Please try again.');
+          }
           return;
         }
+
+        // CASE 2: Receipt found and already claimed
         if (data.claimed) {
           await showAlertModal('Already Claimed', `Receipt ${receiptNumber} already claimed with prize: ${data.prize} (value: RM ${data.value || 'N/A'}).`);
           return;
         }
 
-        // ----- EXPIRY CHECK (30 days from spin date, date only) -----
+        // CASE 3: Receipt found and not claimed – check expiry
         const expiry = getExpiryInfo(data.timestamp);
         if (!expiry.valid) {
           await showAlertModal('Error', `Cannot verify expiry: ${expiry.message}`);
@@ -1018,8 +1055,8 @@
           await showAlertModal('Expired', `This prize expired on ${expiry.expiryDate.toLocaleDateString()}. Cannot claim.`);
           return;
         }
-        // ----- END EXPIRY CHECK -----
 
+        // Proceed with normal claim
         const value = await showInputModal(`Enter receipt value (RM) for prize ${data.prize}`, 'RM amount');
         if (value === null || value === '') {
           if (value !== null) {
@@ -1151,7 +1188,7 @@
 
         const lines = [
           '',
-          'UL LUCKY SPIN',
+          'LUCKY DRAW',
           'CONGRATULATIONS',
           'YOU ARE ENTITLED',
           '',

@@ -4,7 +4,7 @@
   <base target="_top">
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=yes">
   <style>
-    /* (Keep your existing CSS exactly as before – no changes needed) */
+    /* ---------- Your existing CSS (unchanged) ---------- */
     * {
       box-sizing: border-box;
       margin: 0;
@@ -222,6 +222,85 @@
         font-size: 16px;
       }
     }
+
+    /* ---------- Custom Modal Styles ---------- */
+    .modal-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0,0,0,0.6);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 2000;
+    }
+    .modal-container {
+      background: white;
+      max-width: 400px;
+      width: 90%;
+      border-radius: 20px;
+      padding: 24px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+      animation: modalFadeIn 0.2s;
+    }
+    @keyframes modalFadeIn {
+      from { opacity: 0; transform: scale(0.9); }
+      to { opacity: 1; transform: scale(1); }
+    }
+    .modal-title {
+      font-size: 1.5rem;
+      font-weight: 600;
+      margin-bottom: 16px;
+      color: #222;
+    }
+    .modal-input {
+      width: 100%;
+      padding: 12px 16px;
+      font-size: 1rem;
+      border: 1px solid #ccc;
+      border-radius: 30px;
+      margin-bottom: 20px;
+      outline: none;
+    }
+    .modal-input:focus {
+      border-color: #0a7b3c;
+    }
+    .modal-buttons {
+      display: flex;
+      gap: 12px;
+      justify-content: flex-end;
+    }
+    .modal-btn {
+      padding: 12px 24px;
+      border: none;
+      border-radius: 40px;
+      font-size: 1rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    .modal-btn-primary {
+      background: #0a7b3c;
+      color: white;
+    }
+    .modal-btn-primary:hover {
+      background: #0c8f47;
+    }
+    .modal-btn-secondary {
+      background: #f0f0f0;
+      color: #222;
+    }
+    .modal-btn-secondary:hover {
+      background: #ddd;
+    }
+    .modal-message {
+      font-size: 1rem;
+      margin: 16px 0;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
   </style>
 </head>
 <body>
@@ -244,6 +323,28 @@
   </div>
   <div id="printerStatus"></div>
   <div id="result"></div>
+
+  <!-- ---------- Custom Modals ---------- -->
+  <div id="inputModal" class="modal-overlay">
+    <div class="modal-container">
+      <div class="modal-title" id="inputModalTitle">Enter receipt number</div>
+      <input type="text" id="inputModalField" class="modal-input" placeholder="Receipt number">
+      <div class="modal-buttons">
+        <button class="modal-btn modal-btn-secondary" id="inputModalCancel">Cancel</button>
+        <button class="modal-btn modal-btn-primary" id="inputModalOk">OK</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="alertModal" class="modal-overlay">
+    <div class="modal-container">
+      <div class="modal-title" id="alertModalTitle">Message</div>
+      <div class="modal-message" id="alertModalMessage"></div>
+      <div class="modal-buttons" style="justify-content: center;">
+        <button class="modal-btn modal-btn-primary" id="alertModalOk">OK</button>
+      </div>
+    </div>
+  </div>
 
   <script>
     // ---------- CONFIGURATION ----------
@@ -362,6 +463,67 @@
       ctx.lineTo(centerX + 20, 15);
       ctx.fillStyle = '#f00';
       ctx.fill();
+    }
+
+    // ---------- Custom Modal Helpers ----------
+    function showInputModal(title, placeholder = '') {
+      return new Promise((resolve) => {
+        const overlay = document.getElementById('inputModal');
+        const titleEl = document.getElementById('inputModalTitle');
+        const field = document.getElementById('inputModalField');
+        const okBtn = document.getElementById('inputModalOk');
+        const cancelBtn = document.getElementById('inputModalCancel');
+
+        titleEl.textContent = title;
+        field.placeholder = placeholder;
+        field.value = '';
+        overlay.style.display = 'flex';
+        field.focus();
+
+        const onOk = () => {
+          cleanup();
+          resolve(field.value.trim());
+        };
+        const onCancel = () => {
+          cleanup();
+          resolve(null);
+        };
+        const onKeyDown = (e) => {
+          if (e.key === 'Enter') onOk();
+          if (e.key === 'Escape') onCancel();
+        };
+
+        const cleanup = () => {
+          overlay.style.display = 'none';
+          okBtn.removeEventListener('click', onOk);
+          cancelBtn.removeEventListener('click', onCancel);
+          field.removeEventListener('keydown', onKeyDown);
+        };
+
+        okBtn.addEventListener('click', onOk);
+        cancelBtn.addEventListener('click', onCancel);
+        field.addEventListener('keydown', onKeyDown);
+      });
+    }
+
+    function showAlertModal(title, message) {
+      return new Promise((resolve) => {
+        const overlay = document.getElementById('alertModal');
+        const titleEl = document.getElementById('alertModalTitle');
+        const msgEl = document.getElementById('alertModalMessage');
+        const okBtn = document.getElementById('alertModalOk');
+
+        titleEl.textContent = title;
+        msgEl.textContent = message;
+        overlay.style.display = 'flex';
+
+        const onOk = () => {
+          overlay.style.display = 'none';
+          okBtn.removeEventListener('click', onOk);
+          resolve();
+        };
+        okBtn.addEventListener('click', onOk);
+      });
     }
 
     // ---------- GOOGLE SHEETS API FUNCTIONS ----------
@@ -541,17 +703,17 @@
       });
     }
 
-    // ---------- SPIN FUNCTION (modified to use Google Sheets) ----------
+    // ---------- SPIN FUNCTION (using custom modal) ----------
     async function spinWheel() {
       if (spinning) return;
 
-      // If no receipt number stored, prompt and check sheet
+      // If no receipt number stored, prompt via custom modal
       if (storedReceiptNumber === null) {
-        let receiptNumber = prompt("Please enter receipt number:");
-        if (receiptNumber === null) return;
-        receiptNumber = receiptNumber.trim();
-        if (receiptNumber === "") {
-          alert("Receipt number cannot be empty.");
+        const receiptNumber = await showInputModal('Enter receipt number', 'Receipt number');
+        if (receiptNumber === null || receiptNumber === '') {
+          if (receiptNumber !== null) {
+            await showAlertModal('Error', 'Receipt number cannot be empty.');
+          }
           return;
         }
 
@@ -559,11 +721,11 @@
         try {
           const existing = await fetchReceiptData(receiptNumber);
           if (existing !== null) {
-            resultDiv.innerText = `Receipt ${receiptNumber} already won: ${existing.prize}${existing.claimed ? ' (claimed)' : ' (not claimed)'}. Cannot use again.`;
+            await showAlertModal('Already Used', `Receipt ${receiptNumber} already won: ${existing.prize}${existing.claimed ? ' (claimed)' : ' (not claimed)'}. Cannot use again.`);
             return;
           }
         } catch (error) {
-          alert("Error checking receipt. Please try again.");
+          await showAlertModal('Error', 'Error checking receipt. Please try again.');
           console.error(error);
           return;
         }
@@ -673,13 +835,13 @@
     spinBtn.addEventListener('click', spinWheel);
     drawWheel();
 
-    // ---------- CHECK BUTTON (using sheet) ----------
+    // ---------- CHECK BUTTON (using custom modal) ----------
     document.getElementById('checkButton').addEventListener('click', async function() {
-      let receiptNumber = prompt("Enter receipt number to check:");
-      if (receiptNumber === null) return;
-      receiptNumber = receiptNumber.trim();
-      if (receiptNumber === "") {
-        alert("Receipt number cannot be empty.");
+      const receiptNumber = await showInputModal('Check Lucky Draw', 'Receipt number');
+      if (receiptNumber === null || receiptNumber === '') {
+        if (receiptNumber !== null) {
+          await showAlertModal('Error', 'Receipt number cannot be empty.');
+        }
         return;
       }
 
@@ -687,53 +849,64 @@
         const data = await fetchReceiptData(receiptNumber);
         if (data) {
           const status = data.claimed ? `Claimed (value: RM ${data.value || 'N/A'})` : "Not claimed yet";
-          alert(`Receipt ${receiptNumber} won: ${data.prize}\nStatus: ${status}`);
+          await showAlertModal('Receipt Info', `Receipt ${receiptNumber} won: ${data.prize}\nStatus: ${status}`);
         } else {
-          alert(`Receipt ${receiptNumber} not found in records.`);
+          await showAlertModal('Not Found', `Receipt ${receiptNumber} not found in records.`);
         }
       } catch (error) {
-        alert("Error checking receipt. Please try again.");
+        await showAlertModal('Error', 'Error checking receipt. Please try again.');
         console.error(error);
       }
     });
 
-    // ---------- CLAIM BUTTON (using sheet) ----------
+    // ---------- CLAIM BUTTON with expiry check (30 days) ----------
     document.getElementById('claimButton').addEventListener('click', async function() {
-      let receiptNumber = prompt("Enter receipt number to claim:");
-      if (receiptNumber === null) return;
-      receiptNumber = receiptNumber.trim();
-      if (receiptNumber === "") {
-        alert("Receipt number cannot be empty.");
+      const receiptNumber = await showInputModal('Claim Receipt', 'Receipt number');
+      if (receiptNumber === null || receiptNumber === '') {
+        if (receiptNumber !== null) {
+          await showAlertModal('Error', 'Receipt number cannot be empty.');
+        }
         return;
       }
 
       try {
         const data = await fetchReceiptData(receiptNumber);
         if (!data) {
-          alert(`Receipt ${receiptNumber} not found.`);
+          await showAlertModal('Not Found', `Receipt ${receiptNumber} not found.`);
           return;
         }
         if (data.claimed) {
-          alert(`Receipt ${receiptNumber} already claimed with prize: ${data.prize} (FOR TRANSACTION VALUE: RM ${data.value || 'N/A'}).`);
+          await showAlertModal('Already Claimed', `Receipt ${receiptNumber} already claimed with prize: ${data.prize} (value: RM ${data.value || 'N/A'}).`);
           return;
         }
 
-        let value = prompt(`Enter receipt value (RM) for prize ${data.prize}:`);
-        if (value === null) return;
-        value = value.trim();
-        if (value === "") {
-          alert("Value cannot be empty.");
+        // Check expiry: if timestamp is older than 30 days
+        if (data.timestamp) {
+          const spinDate = new Date(data.timestamp);
+          const now = new Date();
+          const diffDays = Math.floor((now - spinDate) / (1000 * 60 * 60 * 24));
+          if (diffDays > 30) {
+            await showAlertModal('Expired', `This prize expired on ${new Date(spinDate.getTime() + 30*24*60*60*1000).toLocaleDateString()}. Cannot claim.`);
+            return;
+          }
+        }
+
+        const value = await showInputModal(`Enter receipt value (RM) for prize ${data.prize}`, 'RM amount');
+        if (value === null || value === '') {
+          if (value !== null) {
+            await showAlertModal('Error', 'Value cannot be empty.');
+          }
           return;
         }
 
         const success = await claimReceipt(receiptNumber, value);
         if (success) {
-          alert(`Receipt ${receiptNumber} claimed successfully for prize ${data.prize} with value RM ${value}.`);
+          await showAlertModal('Success', `Receipt ${receiptNumber} claimed successfully for prize ${data.prize} with value RM ${value}.`);
         } else {
-          alert("Claim failed. Please try again.");
+          await showAlertModal('Error', 'Claim failed. Please try again.');
         }
       } catch (error) {
-        alert("Error claiming receipt. Please try again.");
+        await showAlertModal('Error', 'Error claiming receipt. Please try again.');
         console.error(error);
       }
     });

@@ -4,7 +4,7 @@
   <base target="_top">
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=yes">
   <style>
-    /* ---------- Your existing CSS (unchanged) ---------- */
+    /* ---------- Base Styles ---------- */
     * {
       box-sizing: border-box;
       margin: 0;
@@ -464,6 +464,7 @@
       return ((angle % TWO_PI) + TWO_PI) % TWO_PI;
     }
 
+    // ---------- Improved Wheel Drawing (auto font scaling) ----------
     function drawWheel() {
       const centerX = canvas.width / 2;
       const centerY = canvas.height / 2;
@@ -487,6 +488,7 @@
         const prize = prizes[i];
         const endAngle = startAngle + segmentAngle;
 
+        // Draw segment
         ctx.beginPath();
         ctx.moveTo(centerX, centerY);
         ctx.arc(centerX, centerY, radius, startAngle, endAngle);
@@ -497,21 +499,41 @@
         ctx.lineWidth = 2;
         ctx.stroke();
 
+        // Prepare to draw text
         ctx.save();
         ctx.translate(centerX, centerY);
-        ctx.rotate(startAngle + segmentAngle / 2);
+        ctx.rotate(startAngle + segmentAngle / 2); // rotate to the middle of the segment
+
+        // Calculate available width for text: chord length at 60% of radius (to leave margin)
+        const textRadius = radius * 0.6; // position text closer to center
+        const chordLength = 2 * textRadius * Math.sin(segmentAngle / 2) * 0.9; // 90% of chord for padding
+
+        // Measure text and adjust font size
+        let fontSize = 16; // start with max size
+        const minFontSize = 10;
+        const text = prize.label;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        ctx.font = 'bold 16px -apple-system, BlinkMacSystemFont, sans-serif';
+        ctx.font = `bold ${fontSize}px -apple-system, BlinkMacSystemFont, sans-serif`;
+
+        // Reduce font size until text fits or reaches minimum
+        while (fontSize > minFontSize && ctx.measureText(text).width > chordLength) {
+          fontSize -= 1;
+          ctx.font = `bold ${fontSize}px -apple-system, BlinkMacSystemFont, sans-serif`;
+        }
+
+        // Draw text
         ctx.fillStyle = '#000';
         ctx.shadowColor = 'rgba(255,255,255,0.8)';
         ctx.shadowBlur = 5;
-        ctx.fillText(prize.label, radius * 0.7, 0);
+        ctx.fillText(text, textRadius, 0);
+
         ctx.restore();
 
         startAngle = endAngle;
       }
 
+      // Draw center circle and pointer
       ctx.beginPath();
       ctx.arc(centerX, centerY, 30, 0, TWO_PI);
       ctx.fillStyle = '#333';

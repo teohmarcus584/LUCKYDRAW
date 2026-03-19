@@ -580,12 +580,18 @@
 
         titleEl.textContent = title;
         select.innerHTML = '';
+
+        // Populate dropdown and set default to "CAR AROMATIC RM 38"
         options.forEach(opt => {
           const option = document.createElement('option');
           option.value = opt;
           option.textContent = opt;
+          if (opt === "CAR AROMATIC RM 38") {
+            option.selected = true;
+          }
           select.appendChild(option);
         });
+
         overlay.style.display = 'flex';
 
         const onOk = () => {

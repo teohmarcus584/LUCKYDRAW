@@ -568,6 +568,46 @@
       return result.success;
     }
 
+    // ---------- Helper: Parse timestamp and calculate days since spin ----------
+    function getExpiryInfo(timestamp) {
+      if (!timestamp) return { valid: false, message: 'No date recorded' };
+
+      let spinDate = new Date(timestamp);
+      if (isNaN(spinDate.getTime())) {
+        // Try manual parsing for formats like YYYY-MM-DD or DD/MM/YYYY
+        const parts = timestamp.split(/[-/]/);
+        if (parts.length === 3) {
+          let year, month, day;
+          if (parts[0].length === 4) { // YYYY-MM-DD
+            year = parseInt(parts[0]);
+            month = parseInt(parts[1]) - 1;
+            day = parseInt(parts[2]);
+          } else { // assume DD/MM/YYYY (common in Malaysia)
+            day = parseInt(parts[0]);
+            month = parseInt(parts[1]) - 1;
+            year = parseInt(parts[2]);
+          }
+          spinDate = new Date(year, month, day);
+        } else {
+          return { valid: false, message: 'Invalid date format' };
+        }
+      }
+
+      const spinDay = new Date(spinDate.getFullYear(), spinDate.getMonth(), spinDate.getDate());
+      const today = new Date();
+      const currentDay = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+      const diffDays = Math.floor((currentDay - spinDay) / (1000 * 60 * 60 * 24));
+      const expiryDate = new Date(spinDay.getTime() + 30 * 24 * 60 * 60 * 1000);
+      
+      return {
+        valid: true,
+        spinDate: spinDay,
+        diffDays,
+        expired: diffDays > 30,
+        expiryDate
+      };
+    }
+
     // ---------- AUDIO & ANIMATION ----------
     let audioContext = null;
 
@@ -835,7 +875,7 @@
     spinBtn.addEventListener('click', spinWheel);
     drawWheel();
 
-    // ---------- CHECK BUTTON (using custom modal) ----------
+    // ---------- CHECK BUTTON (with expiry status) ----------
     document.getElementById('checkButton').addEventListener('click', async function() {
       const receiptNumber = await showInputModal('Check Lucky Draw', 'Receipt number');
       if (receiptNumber === null || receiptNumber === '') {
@@ -847,12 +887,32 @@
 
       try {
         const data = await fetchReceiptData(receiptNumber);
-        if (data) {
-          const status = data.claimed ? `Claimed (value: RM ${data.value || 'N/A'})` : "Not claimed yet";
-          await showAlertModal('Receipt Info', `Receipt ${receiptNumber} won: ${data.prize}\nStatus: ${status}`);
-        } else {
+        if (!data) {
           await showAlertModal('Not Found', `Receipt ${receiptNumber} not found in records.`);
+          return;
         }
+
+        // Determine status
+        let statusLine = '';
+        if (data.claimed) {
+          statusLine = `Claimed (value: RM ${data.value || 'N/A'})`;
+        } else {
+          // Check expiry
+          const expiry = getExpiryInfo(data.timestamp);
+          if (!expiry.valid) {
+            statusLine = `Not claimed – ${expiry.message}`;
+          } else if (expiry.expired) {
+            statusLine = `Expired on ${expiry.expiryDate.toLocaleDateString()}`;
+          } else {
+            statusLine = `Valid (expires on ${expiry.expiryDate.toLocaleDateString()})`;
+          }
+        }
+
+        await showAlertModal('Receipt Info', 
+          `Receipt: ${receiptNumber}\n` +
+          `Prize: ${data.prize}\n` +
+          `Status: ${statusLine}`
+        );
       } catch (error) {
         await showAlertModal('Error', 'Error checking receipt. Please try again.');
         console.error(error);
@@ -881,44 +941,13 @@
         }
 
         // ----- EXPIRY CHECK (30 days from spin date, date only) -----
-        if (!data.timestamp) {
-          await showAlertModal('Error', 'No spin date recorded – cannot verify expiry. Please contact support.');
+        const expiry = getExpiryInfo(data.timestamp);
+        if (!expiry.valid) {
+          await showAlertModal('Error', `Cannot verify expiry: ${expiry.message}`);
           return;
         }
-
-        // Parse the timestamp robustly
-        let spinDate = new Date(data.timestamp);
-        if (isNaN(spinDate.getTime())) {
-          // Try manual parsing for formats like YYYY-MM-DD or DD/MM/YYYY
-          const parts = data.timestamp.split(/[-/]/);
-          if (parts.length === 3) {
-            // Assume YYYY-MM-DD or DD/MM/YYYY based on first part length
-            let year, month, day;
-            if (parts[0].length === 4) { // YYYY-MM-DD
-              year = parseInt(parts[0]);
-              month = parseInt(parts[1]) - 1;
-              day = parseInt(parts[2]);
-            } else { // assume DD/MM/YYYY (common in Malaysia)
-              day = parseInt(parts[0]);
-              month = parseInt(parts[1]) - 1;
-              year = parseInt(parts[2]);
-            }
-            spinDate = new Date(year, month, day);
-          } else {
-            await showAlertModal('Error', 'Invalid date format for expiry check.');
-            return;
-          }
-        }
-
-        // Reset both dates to midnight for day‑only comparison
-        const spinDay = new Date(spinDate.getFullYear(), spinDate.getMonth(), spinDate.getDate());
-        const today = new Date();
-        const currentDay = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-
-        const diffDays = Math.floor((currentDay - spinDay) / (1000 * 60 * 60 * 24));
-        if (diffDays > 30) {
-          const expiryDate = new Date(spinDay.getTime() + 30 * 24 * 60 * 60 * 1000);
-          await showAlertModal('Expired', `This prize expired on ${expiryDate.toLocaleDateString()}. Cannot claim.`);
+        if (expiry.expired) {
+          await showAlertModal('Expired', `This prize expired on ${expiry.expiryDate.toLocaleDateString()}. Cannot claim.`);
           return;
         }
         // ----- END EXPIRY CHECK -----

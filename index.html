@@ -505,11 +505,11 @@
         ctx.rotate(startAngle + segmentAngle / 2);
 
         // --- Larger text settings ---
-        const textRadius = radius * 0.65;          // further out for more width
+        const textRadius = radius * 0.55;          // further out for more width
         const chordLength = 2 * textRadius * Math.sin(segmentAngle / 2) * 0.95; // use 95% of chord
 
-        let fontSize = 25;                          // start at 18px (was 16)
-        const minFontSize = 15;
+        let fontSize = 26;                          // start at 18px (was 16)
+        const minFontSize = 18;
         const text = prize.label;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';

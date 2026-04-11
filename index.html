@@ -1,10 +1,10 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-  <base target="_top">
-  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=yes">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=yes, viewport-fit=cover">
+  <title>UL Lucky Spin</title>
   <style>
-    /* ---------- Base Styles (unchanged) ---------- */
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
@@ -123,9 +123,10 @@
   <div id="loadingOverlay" class="loading-overlay"><div class="loading-spinner"></div><div class="loading-text" id="loadingMessage">Loading...</div></div>
 
   <script>
-    // ---------- CONFIGURATION ----------
-    const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxAMSm7-4SLGhHVlsBPws1AqLrcZ1wqfs74qItyUOZ_ilDzCZ5DS2GS29m-l0vkgSLuIA/exec";
+    // ==================== CONFIGURATION ====================
+    const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbx8fcVeJXlT1QJAR9V5-3sCRBw2tJZEJunmPz_J8aFxuKoXFOo1qEMPXb2W_XjDZxnHcw/exec"; // <-- REPLACE WITH YOUR DEPLOYED URL
 
+    // Prize list (weights, labels)
     let prizes = [
       { label: "CAR AROMATIC RM 38", weight: 5 },
       { label: "15ML TRAVEL PERFUME RM 75", weight: 3 },
@@ -150,6 +151,7 @@
     const uniquePrizes = [...new Set(prizes.map(p => p.label))].sort();
     const colorPalette = ["#FF6F61","#6B5B95","#88B04B","#FFA07A","#92A8D1","#F7CAC9","#955251","#B565A7","#009B77","#DD4124"];
 
+    // DOM elements
     const canvas = document.getElementById('wheelCanvas');
     const ctx = canvas.getContext('2d');
     const spinBtn = document.getElementById('spinButton');
@@ -162,6 +164,7 @@
     const TWO_PI = 2 * Math.PI;
     function normalizeAngle(angle) { return ((angle % TWO_PI) + TWO_PI) % TWO_PI; }
 
+    // Draw wheel
     function drawWheel() {
       const centerX = canvas.width/2, centerY = canvas.height/2, radius = Math.min(centerX,centerY)-15;
       ctx.clearRect(0,0,canvas.width,canvas.height);
@@ -185,29 +188,132 @@
       ctx.beginPath(); ctx.moveTo(centerX-20,15); ctx.lineTo(centerX,45); ctx.lineTo(centerX+20,15); ctx.fillStyle='#f00'; ctx.fill();
     }
 
-    // --- Modal helpers (unchanged) ---
-    function showInputModal(title,placeholder='') { return new Promise((resolve)=>{ const overlay=document.getElementById('inputModal'), titleEl=document.getElementById('inputModalTitle'), field=document.getElementById('inputModalField'), okBtn=document.getElementById('inputModalOk'), cancelBtn=document.getElementById('inputModalCancel'); titleEl.textContent=title; field.placeholder=placeholder; field.value=''; overlay.style.display='flex'; field.focus(); const onOk=()=>{cleanup();resolve(field.value.trim());}; const onCancel=()=>{cleanup();resolve(null);}; const onKeyDown=(e)=>{if(e.key==='Enter')onOk();if(e.key==='Escape')onCancel();}; const cleanup=()=>{overlay.style.display='none'; okBtn.removeEventListener('click',onOk); cancelBtn.removeEventListener('click',onCancel); field.removeEventListener('keydown',onKeyDown);}; okBtn.addEventListener('click',onOk); cancelBtn.addEventListener('click',onCancel); field.addEventListener('keydown',onKeyDown); }); }
-    function showSelectModal(title,options) { return new Promise((resolve)=>{ const overlay=document.getElementById('selectModal'), titleEl=document.getElementById('selectModalTitle'), select=document.getElementById('selectModalField'), okBtn=document.getElementById('selectModalOk'), cancelBtn=document.getElementById('selectModalCancel'); titleEl.textContent=title; select.innerHTML=''; options.forEach(opt=>{const option=document.createElement('option'); option.value=opt; option.textContent=opt; select.appendChild(option);}); overlay.style.display='flex'; const onOk=()=>{cleanup();resolve(select.value);}; const onCancel=()=>{cleanup();resolve(null);}; const onKeyDown=(e)=>{if(e.key==='Enter')onOk();if(e.key==='Escape')onCancel();}; const cleanup=()=>{overlay.style.display='none'; okBtn.removeEventListener('click',onOk); cancelBtn.removeEventListener('click',onCancel); select.removeEventListener('keydown',onKeyDown);}; okBtn.addEventListener('click',onOk); cancelBtn.addEventListener('click',onCancel); select.addEventListener('keydown',onKeyDown); }); }
-    function showAlertModal(title,message) { return new Promise((resolve)=>{ const overlay=document.getElementById('alertModal'), titleEl=document.getElementById('alertModalTitle'), msgEl=document.getElementById('alertModalMessage'), okBtn=document.getElementById('alertModalOk'); titleEl.textContent=title; msgEl.textContent=message; overlay.style.display='flex'; const onOk=()=>{overlay.style.display='none'; okBtn.removeEventListener('click',onOk); resolve();}; okBtn.addEventListener('click',onOk); }); }
+    // Modal helpers
+    function showInputModal(title,placeholder='') {
+      return new Promise((resolve)=>{
+        const overlay=document.getElementById('inputModal'), titleEl=document.getElementById('inputModalTitle'), field=document.getElementById('inputModalField'), okBtn=document.getElementById('inputModalOk'), cancelBtn=document.getElementById('inputModalCancel');
+        titleEl.textContent=title; field.placeholder=placeholder; field.value=''; overlay.style.display='flex'; field.focus();
+        const onOk=()=>{cleanup();resolve(field.value.trim());};
+        const onCancel=()=>{cleanup();resolve(null);};
+        const onKeyDown=(e)=>{if(e.key==='Enter')onOk();if(e.key==='Escape')onCancel();};
+        const cleanup=()=>{overlay.style.display='none'; okBtn.removeEventListener('click',onOk); cancelBtn.removeEventListener('click',onCancel); field.removeEventListener('keydown',onKeyDown);};
+        okBtn.addEventListener('click',onOk); cancelBtn.addEventListener('click',onCancel); field.addEventListener('keydown',onKeyDown);
+      });
+    }
+    function showSelectModal(title,options) {
+      return new Promise((resolve)=>{
+        const overlay=document.getElementById('selectModal'), titleEl=document.getElementById('selectModalTitle'), select=document.getElementById('selectModalField'), okBtn=document.getElementById('selectModalOk'), cancelBtn=document.getElementById('selectModalCancel');
+        titleEl.textContent=title; select.innerHTML=''; options.forEach(opt=>{const option=document.createElement('option'); option.value=opt; option.textContent=opt; select.appendChild(option);});
+        overlay.style.display='flex';
+        const onOk=()=>{cleanup();resolve(select.value);};
+        const onCancel=()=>{cleanup();resolve(null);};
+        const onKeyDown=(e)=>{if(e.key==='Enter')onOk();if(e.key==='Escape')onCancel();};
+        const cleanup=()=>{overlay.style.display='none'; okBtn.removeEventListener('click',onOk); cancelBtn.removeEventListener('click',onCancel); select.removeEventListener('keydown',onKeyDown);};
+        okBtn.addEventListener('click',onOk); cancelBtn.addEventListener('click',onCancel); select.addEventListener('keydown',onKeyDown);
+      });
+    }
+    function showAlertModal(title,message) {
+      return new Promise((resolve)=>{
+        const overlay=document.getElementById('alertModal'), titleEl=document.getElementById('alertModalTitle'), msgEl=document.getElementById('alertModalMessage'), okBtn=document.getElementById('alertModalOk');
+        titleEl.textContent=title; msgEl.textContent=message; overlay.style.display='flex';
+        const onOk=()=>{overlay.style.display='none'; okBtn.removeEventListener('click',onOk); resolve();};
+        okBtn.addEventListener('click',onOk);
+      });
+    }
     const loadingOverlay=document.getElementById('loadingOverlay'), loadingMessage=document.getElementById('loadingMessage');
     function showLoading(msg='Loading...'){ loadingMessage.textContent=msg; loadingOverlay.style.display='flex'; }
     function hideLoading(){ loadingOverlay.style.display='none'; }
 
-    // --- Google Sheets API (unchanged) ---
-    async function fetchReceiptData(receiptNumber){ showLoading('Checking receipt...'); try{ const url=`${APPS_SCRIPT_URL}?action=get&receipt=${encodeURIComponent(receiptNumber)}`; const resp=await fetch(url); const res=await resp.json(); return res.success?res.data:null; }finally{ hideLoading(); } }
-    async function saveSpinResult(receiptNumber,prize){ showLoading('Saving record...'); try{ const fd=new URLSearchParams(); fd.append('action','save'); fd.append('receipt',receiptNumber); fd.append('prize',prize); const resp=await fetch(APPS_SCRIPT_URL,{method:'POST',body:fd}); const res=await resp.json(); return res.success; }finally{ hideLoading(); } }
-    async function claimReceipt(receiptNumber,value){ showLoading('Processing claim...'); try{ const fd=new URLSearchParams(); fd.append('action','claim'); fd.append('receipt',receiptNumber); fd.append('value',value); const resp=await fetch(APPS_SCRIPT_URL,{method:'POST',body:fd}); const res=await resp.json(); return res.success; }finally{ hideLoading(); } }
-    function parseSpinDate(timestamp){ if(!timestamp)return null; let d=new Date(timestamp); if(isNaN(d.getTime())){ const parts=timestamp.split(/[-/]/); if(parts.length===3){ let y,m,day; if(parts[0].length===4){ y=parseInt(parts[0]); m=parseInt(parts[1])-1; day=parseInt(parts[2]); }else{ day=parseInt(parts[0]); m=parseInt(parts[1])-1; y=parseInt(parts[2]); } d=new Date(y,m,day); }else return null; } if(isNaN(d.getTime()))return null; return new Date(d.getFullYear(),d.getMonth(),d.getDate()); }
-    function getExpiryInfo(timestamp){ const spinDate=parseSpinDate(timestamp); if(!spinDate)return{valid:false,message:'Invalid date format'}; const today=new Date(); const currentDay=new Date(today.getFullYear(),today.getMonth(),today.getDate()); const diffDays=Math.floor((currentDay-spinDate)/(1000*60*60*24)); const expiryDate=new Date(spinDate.getTime()+30*24*60*60*1000); return{valid:true,spinDate,diffDays,expired:diffDays>30,expiryDate}; }
+    // API calls
+    async function fetchReceiptData(receiptNumber){
+      showLoading('Checking receipt...');
+      try{
+        const url=`${APPS_SCRIPT_URL}?action=get&receipt=${encodeURIComponent(receiptNumber)}`;
+        const resp=await fetch(url);
+        const res=await resp.json();
+        return res.success?res.data:null;
+      }finally{ hideLoading(); }
+    }
+    async function saveSpinResult(receiptNumber,prize){
+      showLoading('Saving record...');
+      try{
+        const fd=new URLSearchParams();
+        fd.append('action','save');
+        fd.append('receipt',receiptNumber);
+        fd.append('prize',prize);
+        const resp=await fetch(APPS_SCRIPT_URL,{method:'POST',body:fd});
+        const res=await resp.json();
+        return res.success;
+      }finally{ hideLoading(); }
+    }
+    async function claimReceipt(receiptNumber,value){
+      showLoading('Processing claim...');
+      try{
+        const fd=new URLSearchParams();
+        fd.append('action','claim');
+        fd.append('receipt',receiptNumber);
+        fd.append('value',value);
+        const resp=await fetch(APPS_SCRIPT_URL,{method:'POST',body:fd});
+        const res=await resp.json();
+        return res.success;
+      }finally{ hideLoading(); }
+    }
 
-    // --- Audio (unchanged) ---
+    // Audio effects
     let audioContext=null;
     function initAudio(){ if(!audioContext) audioContext=new (window.AudioContext||window.webkitAudioContext)(); }
-    function playCoinSound(){ try{ initAudio(); const now=audioContext.currentTime; const osc1=audioContext.createOscillator(); const gain1=audioContext.createGain(); osc1.type='sine'; osc1.frequency.value=1200; gain1.gain.setValueAtTime(0.3,now); gain1.gain.exponentialRampToValueAtTime(0.01,now+0.15); osc1.connect(gain1); gain1.connect(audioContext.destination); osc1.start(now); osc1.stop(now+0.15); const osc2=audioContext.createOscillator(); const gain2=audioContext.createGain(); osc2.type='sine'; osc2.frequency.value=1800; gain2.gain.setValueAtTime(0.15,now); gain2.gain.exponentialRampToValueAtTime(0.005,now+0.1); osc2.connect(gain2); gain2.connect(audioContext.destination); osc2.start(now); osc2.stop(now+0.1); const bufferSize=4096; const noiseBuffer=audioContext.createBuffer(1,bufferSize,audioContext.sampleRate); const output=noiseBuffer.getChannelData(0); for(let i=0;i<bufferSize;i++) output[i]=Math.random()*2-1; const noise=audioContext.createBufferSource(); noise.buffer=noiseBuffer; const noiseGain=audioContext.createGain(); noiseGain.gain.setValueAtTime(0.1,now); noiseGain.gain.exponentialRampToValueAtTime(0.001,now+0.05); noise.connect(noiseGain); noiseGain.connect(audioContext.destination); noise.start(now); noise.stop(now+0.05); }catch(e){console.log('Audio not supported');} }
-    function playSpinSound(){ try{ initAudio(); const now=audioContext.currentTime; const bufferSize=4096; const noiseBuffer=audioContext.createBuffer(1,bufferSize,audioContext.sampleRate); const output=noiseBuffer.getChannelData(0); for(let i=0;i<bufferSize;i++) output[i]=Math.random()*2-1; const noise=audioContext.createBufferSource(); noise.buffer=noiseBuffer; const filter=audioContext.createBiquadFilter(); filter.type='bandpass'; filter.frequency.setValueAtTime(800,now); filter.frequency.exponentialRampToValueAtTime(200,now+0.5); filter.Q.value=5; const gain=audioContext.createGain(); gain.gain.setValueAtTime(0.2,now); gain.gain.exponentialRampToValueAtTime(0.001,now+0.5); noise.connect(filter); filter.connect(gain); gain.connect(audioContext.destination); noise.start(now); noise.stop(now+0.5); const osc=audioContext.createOscillator(); const oscGain=audioContext.createGain(); osc.type='sawtooth'; osc.frequency.setValueAtTime(150,now); osc.frequency.exponentialRampToValueAtTime(60,now+0.4); oscGain.gain.setValueAtTime(0.1,now); oscGain.gain.exponentialRampToValueAtTime(0.001,now+0.4); osc.connect(oscGain); oscGain.connect(audioContext.destination); osc.start(now); osc.stop(now+0.4); }catch(e){console.log('Audio not supported');} }
-    function animateCoinToButton(){ return new Promise((resolve)=>{ const coin=document.getElementById('coinToken'); const spinBtnRect=spinBtn.getBoundingClientRect(); const targetX=spinBtnRect.left+spinBtnRect.width/2; const targetY=spinBtnRect.top+spinBtnRect.height/2; const wheelRect=canvas.getBoundingClientRect(); const startX=wheelRect.right-30; const startY=wheelRect.bottom-30; coin.style.display='flex'; coin.style.left=startX+'px'; coin.style.top=startY+'px'; coin.style.transform='translate(0,0) scale(1.5)'; coin.offsetHeight; const dx=targetX-startX; const dy=targetY-startY; coin.style.transform=`translate(${dx}px, ${dy}px) scale(1)`; const onTransitionEnd=()=>{ coin.style.display='none'; coin.removeEventListener('transitionend',onTransitionEnd); playCoinSound(); resolve(); }; coin.addEventListener('transitionend',onTransitionEnd,{once:true}); }); }
+    function playCoinSound(){
+      try{ initAudio(); const now=audioContext.currentTime;
+        const osc1=audioContext.createOscillator(); const gain1=audioContext.createGain();
+        osc1.type='sine'; osc1.frequency.value=1200; gain1.gain.setValueAtTime(0.3,now); gain1.gain.exponentialRampToValueAtTime(0.01,now+0.15);
+        osc1.connect(gain1); gain1.connect(audioContext.destination); osc1.start(now); osc1.stop(now+0.15);
+        const osc2=audioContext.createOscillator(); const gain2=audioContext.createGain();
+        osc2.type='sine'; osc2.frequency.value=1800; gain2.gain.setValueAtTime(0.15,now); gain2.gain.exponentialRampToValueAtTime(0.005,now+0.1);
+        osc2.connect(gain2); gain2.connect(audioContext.destination); osc2.start(now); osc2.stop(now+0.1);
+        const bufferSize=4096; const noiseBuffer=audioContext.createBuffer(1,bufferSize,audioContext.sampleRate);
+        const output=noiseBuffer.getChannelData(0); for(let i=0;i<bufferSize;i++) output[i]=Math.random()*2-1;
+        const noise=audioContext.createBufferSource(); noise.buffer=noiseBuffer; const noiseGain=audioContext.createGain();
+        noiseGain.gain.setValueAtTime(0.1,now); noiseGain.gain.exponentialRampToValueAtTime(0.001,now+0.05);
+        noise.connect(noiseGain); noiseGain.connect(audioContext.destination); noise.start(now); noise.stop(now+0.05);
+      }catch(e){ console.log('Audio not supported'); }
+    }
+    function playSpinSound(){
+      try{ initAudio(); const now=audioContext.currentTime;
+        const bufferSize=4096; const noiseBuffer=audioContext.createBuffer(1,bufferSize,audioContext.sampleRate);
+        const output=noiseBuffer.getChannelData(0); for(let i=0;i<bufferSize;i++) output[i]=Math.random()*2-1;
+        const noise=audioContext.createBufferSource(); noise.buffer=noiseBuffer;
+        const filter=audioContext.createBiquadFilter(); filter.type='bandpass'; filter.frequency.setValueAtTime(800,now); filter.frequency.exponentialRampToValueAtTime(200,now+0.5); filter.Q.value=5;
+        const gain=audioContext.createGain(); gain.gain.setValueAtTime(0.2,now); gain.gain.exponentialRampToValueAtTime(0.001,now+0.5);
+        noise.connect(filter); filter.connect(gain); gain.connect(audioContext.destination); noise.start(now); noise.stop(now+0.5);
+        const osc=audioContext.createOscillator(); const oscGain=audioContext.createGain();
+        osc.type='sawtooth'; osc.frequency.setValueAtTime(150,now); osc.frequency.exponentialRampToValueAtTime(60,now+0.4);
+        oscGain.gain.setValueAtTime(0.1,now); oscGain.gain.exponentialRampToValueAtTime(0.001,now+0.4);
+        osc.connect(oscGain); oscGain.connect(audioContext.destination); osc.start(now); osc.stop(now+0.4);
+      }catch(e){ console.log('Audio not supported'); }
+    }
+    function animateCoinToButton(){
+      return new Promise((resolve)=>{
+        const coin=document.getElementById('coinToken');
+        const spinBtnRect=spinBtn.getBoundingClientRect();
+        const targetX=spinBtnRect.left+spinBtnRect.width/2;
+        const targetY=spinBtnRect.top+spinBtnRect.height/2;
+        const wheelRect=canvas.getBoundingClientRect();
+        const startX=wheelRect.right-30;
+        const startY=wheelRect.bottom-30;
+        coin.style.display='flex';
+        coin.style.left=startX+'px';
+        coin.style.top=startY+'px';
+        coin.style.transform='translate(0,0) scale(1.5)';
+        coin.offsetHeight;
+        const dx=targetX-startX;
+        const dy=targetY-startY;
+        coin.style.transform=`translate(${dx}px, ${dy}px) scale(1)`;
+        const onTransitionEnd=()=>{ coin.style.display='none'; coin.removeEventListener('transitionend',onTransitionEnd); playCoinSound(); resolve(); };
+        coin.addEventListener('transitionend',onTransitionEnd,{once:true});
+      });
+    }
 
-    // --- SPIN (unchanged) ---
+    // Spin logic
     async function spinWheel(){
       if(spinning)return;
       if(storedReceiptNumber===null){
@@ -217,10 +323,15 @@
           const existing=await fetchReceiptData(receiptNumber);
           if(existing!==null){ await showAlertModal('Already Used',`Receipt ${receiptNumber} already won: ${existing.prize}${existing.claimed?' (claimed)':' (not claimed)'}. Cannot use again.`); return; }
         }catch(error){ await showAlertModal('Error','Error checking receipt. Please try again.'); console.error(error); return; }
-        storedReceiptNumber=receiptNumber; resultDiv.innerText=`Valid! Token added -- Spin the wheel, Good luck...`;
-        await animateCoinToButton(); spinBtn.classList.add('pulse-glow'); return;
+        storedReceiptNumber=receiptNumber;
+        resultDiv.innerText=`Valid! Token added -- Spin the wheel, Good luck...`;
+        await animateCoinToButton();
+        spinBtn.classList.add('pulse-glow');
+        return;
       }
-      const receiptNumber=storedReceiptNumber; storedReceiptNumber=null; spinBtn.classList.remove('pulse-glow'); playSpinSound();
+      const receiptNumber=storedReceiptNumber; storedReceiptNumber=null;
+      spinBtn.classList.remove('pulse-glow');
+      playSpinSound();
       if(prizes.length===0){ resultDiv.innerText='Add some prizes first!'; return; }
       const totalWeight=prizes.reduce((s,p)=>s+p.weight,0);
       if(totalWeight===0){ resultDiv.innerText='All weights are zero – nothing to win!'; return; }
@@ -235,8 +346,11 @@
       let targetBaseRotation=normalizeAngle(normalizedPointerAngle-targetAngleInWheel);
       const extraFullTurns=12+Math.floor(Math.random()*9);
       const extraAngle=extraFullTurns*TWO_PI;
-      spinTargetRotation=targetBaseRotation+extraAngle; spinStartRotation=currentRotation; spinStartTime=performance.now();
-      spinning=true; spinBtn.disabled=true; if(animationFrame)cancelAnimationFrame(animationFrame);
+      spinTargetRotation=targetBaseRotation+extraAngle;
+      spinStartRotation=currentRotation;
+      spinStartTime=performance.now();
+      spinning=true; spinBtn.disabled=true;
+      if(animationFrame)cancelAnimationFrame(animationFrame);
       function animateSpin(now){
         const elapsed=now-spinStartTime; let progress=Math.min(elapsed/spinDuration,1);
         const easeOutQuart=1-Math.pow(1-progress,4);
@@ -248,7 +362,8 @@
           const segmentIndex=Math.floor(wheelAngleAtPointer/segmentAngle);
           const actualIndex=Math.min(segmentIndex,prizes.length-1);
           const wonPrize=prizes[actualIndex];
-          spinning=false; spinBtn.disabled=false; resultDiv.innerText=`🎉 you won: ${wonPrize.label}`;
+          spinning=false; spinBtn.disabled=false;
+          resultDiv.innerText=`🎉 you won: ${wonPrize.label}`;
           saveSpinResult(receiptNumber,wonPrize.label).catch(e=>console.error(e));
           if(window.printerAPI&&window.printerAPI.isConnected&&window.printerAPI.printWinningPrize){
             window.printerAPI.printWinningPrize(wonPrize.label,receiptNumber,new Date());
@@ -258,9 +373,10 @@
       }
       animationFrame=requestAnimationFrame(animateSpin);
     }
-    spinBtn.addEventListener('click',spinWheel); drawWheel();
+    spinBtn.addEventListener('click',spinWheel);
+    drawWheel();
 
-    // --- Check / Claim / Reprint (unchanged) ---
+    // Check button
     document.getElementById('checkButton').addEventListener('click',async()=>{
       const receiptNumber=await showInputModal('Check Lucky Draw','Receipt number');
       if(!receiptNumber){ if(receiptNumber!==null) await showAlertModal('Error','Receipt number cannot be empty.'); return; }
@@ -269,27 +385,40 @@
         if(!data){ await showAlertModal('Not Found',`Receipt ${receiptNumber} not found in records.`); return; }
         let statusLine='';
         if(data.claimed) statusLine=`Claimed (value: RM ${data.value||'N/A'})`;
-        else{ const expiry=getExpiryInfo(data.timestamp); if(!expiry.valid) statusLine=`Not claimed – ${expiry.message}`; else if(expiry.expired) statusLine=`Expired on ${expiry.expiryDate.toLocaleDateString()}`; else statusLine=`Valid (expires on ${expiry.expiryDate.toLocaleDateString()})`; }
+        else if(data.is_expired) statusLine=`Expired (30 days passed)`;
+        else statusLine=`Valid (not claimed yet)`;
         await showAlertModal('Receipt Info',`Receipt: ${receiptNumber}\nPrize: ${data.prize}\nStatus: ${statusLine}`);
       }catch(error){ await showAlertModal('Error','Error checking receipt.'); console.error(error); }
     });
+
+    // Claim button – uses backend is_expired flag
     document.getElementById('claimButton').addEventListener('click',async()=>{
       const receiptNumber=await showInputModal('Claim Receipt','Receipt number');
       if(!receiptNumber){ if(receiptNumber!==null) await showAlertModal('Error','Receipt number cannot be empty.'); return; }
       try{
         const data=await fetchReceiptData(receiptNumber);
         if(!data){
-          const prize=await showSelectModal('Select prize won',uniquePrizes); if(prize===null) return;
-          const value=await showInputModal('Enter NEW receipt value (RM)','RM amount'); if(value===null||value===''){ if(value!==null) await showAlertModal('Error','Value cannot be empty.'); return; }
-          const saved=await saveSpinResult(receiptNumber,prize); if(!saved){ await showAlertModal('Error','Failed to save record.'); return; }
+          // New receipt: ask for prize and value, then claim
+          const prize=await showSelectModal('Select prize won',uniquePrizes);
+          if(prize===null) return;
+          const value=await showInputModal('Enter NEW receipt value (RM)','RM amount');
+          if(value===null||value===''){ if(value!==null) await showAlertModal('Error','Value cannot be empty.'); return; }
+          const saved=await saveSpinResult(receiptNumber,prize);
+          if(!saved){ await showAlertModal('Error','Failed to save record.'); return; }
           const claimed=await claimReceipt(receiptNumber,value);
           if(claimed) await showAlertModal('Success',`Receipt ${receiptNumber} claimed successfully for prize ${prize} with value RM ${value}.`);
           else await showAlertModal('Error','Claim failed after saving record.');
           return;
         }
-        if(data.claimed){ await showAlertModal('Already Claimed',`Receipt ${receiptNumber} already claimed with prize: ${data.prize} (value: RM ${data.value||'N/A'}).`); return; }
-        const expiry=getExpiryInfo(data.timestamp);
-        if(!expiry.valid||expiry.expired){ await showAlertModal('Expired',`This prize expired on ${expiry.expiryDate?.toLocaleDateString()||'unknown date'}. Cannot claim.`); return; }
+        // Existing receipt
+        if(data.claimed){
+          await showAlertModal('Already Claimed',`Receipt ${receiptNumber} already claimed with prize: ${data.prize} (value: RM ${data.value||'N/A'}).`);
+          return;
+        }
+        if(data.is_expired){
+          await showAlertModal('Expired','This prize has expired (30 days after the spin date). Cannot claim.');
+          return;
+        }
         const value=await showInputModal(`Enter NEW receipt value (RM) for prize ${data.prize}`,'RM amount');
         if(value===null||value===''){ if(value!==null) await showAlertModal('Error','Value cannot be empty.'); return; }
         const success=await claimReceipt(receiptNumber,value);
@@ -297,6 +426,8 @@
         else await showAlertModal('Error','Claim failed.');
       }catch(error){ await showAlertModal('Error','Error claiming receipt.'); console.error(error); }
     });
+
+    // Reprint button
     document.getElementById('reprintButton').addEventListener('click',async()=>{
       if(!window.printerAPI||!window.printerAPI.isConnected){ await showAlertModal('Printer Error','Printer not connected. Please connect first.'); return; }
       const receiptNumber=await showInputModal('Reprint Ticket','Enter receipt number');
@@ -304,13 +435,13 @@
       try{
         const data=await fetchReceiptData(receiptNumber);
         if(!data){ await showAlertModal('Not Found',`Receipt ${receiptNumber} not found. Cannot reprint.`); return; }
-        const spinDate=parseSpinDate(data.timestamp);
-        await window.printerAPI.printWinningPrize(data.prize,receiptNumber,spinDate||new Date());
+        const spinDate=data.timestamp ? new Date(data.timestamp) : new Date();
+        await window.printerAPI.printWinningPrize(data.prize,receiptNumber,spinDate);
         resultDiv.innerText=`🖨️ Reprint requested for ${receiptNumber}`;
       }catch(err){ console.error(err); await showAlertModal('Error','Could not reprint ticket.'); }
     });
 
-    // ---------- PRINTER INTEGRATION (smaller barcode) ----------
+    // Printer integration (Bluetooth)
     (function(){
       const connectBtn=document.getElementById('connectPrinterButton');
       const printerStatus=document.getElementById('printerStatus');
@@ -330,20 +461,15 @@
         ];
         const text=lines.join('\n');
         const commands=[];
-        // initialize, font, alignment
         commands.push(0x1B,0x40, 0x1B,0x52,0x00, 0x1B,0x21,0x00, 0x1B,0x61,0x01);
         for(let i=0;i<text.length;i++) commands.push(text.charCodeAt(i));
-        commands.push(0x0A); // newline
-
-        // Smaller barcode: height = 50 dots (0x32) , width = 1 (0x01)
+        commands.push(0x0A);
         commands.push(0x1D,0x68,0x32, 0x1D,0x77,0x01);
-        commands.push(0x1B,0x61,0x01); // center barcode
-        // Code128 (GS k 73) + length + data
+        commands.push(0x1B,0x61,0x01);
         const barcodeData=encoder.encode(receiptNumber);
         const len=barcodeData.length;
         commands.push(0x1D,0x6B,0x49,len);
         for(let i=0;i<len;i++) commands.push(barcodeData[i]);
-        // feed and cut
         commands.push(0x0A,0x0A, 0x1B,0x64,0x03, 0x1D,0x56,0x41,0x00);
         return new Uint8Array(commands);
       }
@@ -419,7 +545,7 @@
       window.printerAPI={isConnected:false, printWinningPrize:printWinningPrize};
     })();
 
-    // --- URL receipt auto-detect (unchanged) ---
+    // Auto-detect receipt from URL
     (async function(){
       const urlParams=new URLSearchParams(window.location.search);
       const receiptFromUrl=urlParams.get('receipt');
